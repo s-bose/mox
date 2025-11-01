@@ -48,6 +48,8 @@ const (
 	IF       = "if"
 	ELSE     = "else"
 	NULL     = "null"
+	PRIVATE  = "private"
+	IMPL     = "impl"
 )
 
 var keywords = map[string]TokenType{
