@@ -7,6 +7,10 @@ type Token struct {
 	Literal string
 }
 
+func (t *Token) Repr() string {
+	return string(t.Type) + "('" + t.Literal + "')"
+}
+
 const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
@@ -23,6 +27,18 @@ const (
 	MINUS  = "-"
 	FSLASH = "/"
 	STAR   = "*"
+	LT     = "<"
+	GT     = ">"
+	BANG   = "!"
+	AMP    = "&"
+	PIPE   = "|"
+
+	EQ     = "=="
+	NOT_EQ = "!="
+	GTE    = ">="
+	LTE    = "<="
+	AND    = "&&"
+	OR     = "||"
 
 	COMMA     = ","
 	SEMICOLON = ";"

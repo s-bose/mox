@@ -26,6 +26,14 @@ func (l *Lexer) readChar() {
 	l.readPosition += 1
 }
 
+func (l *Lexer) PeekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition]
+	}
+}
+
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
@@ -33,7 +41,23 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case '=':
-		tok = makeToken(token.ASSIGN, l.ch)
+		if l.PeekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.EQ, Literal: literal}
+		} else {
+			tok = makeToken(token.ASSIGN, l.ch)
+		}
+	case '!':
+		if l.PeekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.NOT_EQ, Literal: literal}
+		} else {
+			tok = makeToken(token.BANG, l.ch)
+		}
 	case '+':
 		tok = makeToken(token.PLUS, l.ch)
 	case '-':
@@ -42,6 +66,42 @@ func (l *Lexer) NextToken() token.Token {
 		tok = makeToken(token.FSLASH, l.ch)
 	case '*':
 		tok = makeToken(token.STAR, l.ch)
+	case '<':
+		if l.PeekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.LTE, Literal: literal}
+		} else {
+			tok = makeToken(token.LT, l.ch)
+		}
+	case '>':
+		if l.PeekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.GTE, Literal: literal}
+		} else {
+			tok = makeToken(token.GT, l.ch)
+		}
+	case '&':
+		if l.PeekChar() == '&' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.AND, Literal: literal}
+		} else {
+			tok = makeToken(token.AMP, l.ch)
+		}
+	case '|':
+		if l.PeekChar() == '|' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.OR, Literal: literal}
+		} else {
+			tok = makeToken(token.PIPE, l.ch)
+		}
 	case ',':
 		tok = makeToken(token.COMMA, l.ch)
 	case ';':
