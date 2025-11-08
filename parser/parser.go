@@ -27,10 +27,12 @@ func (p *Parser) nextToken() {
 	p.peekToken = p.l.NextToken()
 }
 
-func (p *Parser) ParseStatement() *ast.Statement {
+func (p *Parser) ParseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
-		return p.ParseLet()
+		return ParseLetStatement(p)
+	case token.RETURN:
+		return ParseReturnStatement(p)
 	default:
 		return nil
 	}
@@ -53,21 +55,6 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 	}
 }
 
-func (p *Parser) ParseLet() *ast.Statement {
-	stmt := &ast.LetStatement{Token: p.curToken}
-
-	if !p.expectPeek(token.IDENT) {
-		return nil
-	}
-
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	if !p.expectPeek(token.EQ) {
-		return nil
-	}
-
-}
-
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
@@ -78,4 +65,6 @@ func (p *Parser) ParseProgram() *ast.Program {
 	}
 
 	p.nextToken()
+
+	return program
 }

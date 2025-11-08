@@ -86,6 +86,13 @@ var keywords = map[string]TokenType{
 	"null":   NULL,
 }
 
+var dataTypes = map[string]TokenType{
+	"int":    INT,
+	"float":  FLOAT,
+	"string": STRING,
+	"bool":   BOOL,
+}
+
 func LookupIdent(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
 		return tok
