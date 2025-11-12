@@ -6,6 +6,7 @@ import (
 
 	"github.com/s-bose/mox/ast"
 	"github.com/s-bose/mox/lexer"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLetStatements(t *testing.T) {
@@ -18,13 +19,6 @@ func TestLetStatements(t *testing.T) {
 	lex := lexer.New(input)
 	p := New(lex)
 	program := p.ParseProgram()
-	if program == nil {
-		t.Fatalf("program does not contain any statements, expected %d", len(program.Statements))
-	}
-
-	if len(program.Statements) != 3 {
-		t.Fatalf("program should contain %d statements", len(program.Statements))
-	}
 
 	tests := []struct {
 		expectedIdent string
@@ -35,6 +29,8 @@ func TestLetStatements(t *testing.T) {
 		{"z", "string"},
 	}
 
+	assert.NotNil(t, program)
+	assert.Equal(t, len(program.Statements), 3)
 	for i, tc := range tests {
 		stmt := program.Statements[i]
 
@@ -45,25 +41,16 @@ func TestLetStatements(t *testing.T) {
 			)
 		}
 
-		letStmt, ok := stmt.(*ast.LetStatement)
-		if !ok {
-			t.Errorf("s is not of type LetStatement, %T", letStmt)
-		}
+		assert.IsType(t, &ast.LetStatement{}, stmt)
+		letStmt, _ := stmt.(*ast.LetStatement)
 
-		if letStmt.Name.Value != tc.expectedIdent {
-			t.Fatalf("expected identifier %s, found %s", tc.expectedIdent, letStmt.Name.Value)
-		}
+		assert.Equal(t, letStmt.Name.Value, tc.expectedIdent)
 
 		if letStmt.Type != nil {
-			if letStmt.Type.Value != tc.expectedType {
-				t.Fatalf("expected type %s, found %s", tc.expectedType, letStmt.Type.Value)
-			}
+			assert.Equal(t, letStmt.Type.Value, tc.expectedType)
 		}
 
-		if letStmt.Name.TokenLiteral() != tc.expectedIdent {
-			t.Fatalf("")
-		}
-
+		assert.Equal(t, letStmt.Name.TokenLiteral(), tc.expectedIdent)
 	}
 }
 
@@ -78,21 +65,14 @@ func TestReturnStatement(t *testing.T) {
 	p := New(l)
 
 	program := p.ParseProgram()
-	if len(program.Statements) != 3 {
-		t.Fatalf("expected 3 statements, got %d", len(program.Statements))
-	}
 
+	assert.Equal(t, len(program.Statements), 3)
 	for _, stmt := range program.Statements {
-		returnStmtStruct, ok := stmt.(*ast.ReturnStatement)
+		assert.IsType(t, &ast.ReturnStatement{}, stmt)
 
-		if !ok {
-			t.Fatalf("unable to parse return statement, %T", stmt)
-			continue
-		}
+		returnStmtStruct, _ := stmt.(*ast.ReturnStatement)
 
-		if returnStmtStruct.TokenLiteral() != "return" {
-			t.Fatalf("invalid token, got %q", returnStmtStruct.TokenLiteral())
-		}
+		assert.Equal(t, returnStmtStruct.TokenLiteral(), "return")
 	}
 }
 

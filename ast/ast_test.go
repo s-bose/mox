@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/s-bose/mox/token"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestString(t *testing.T) {
@@ -18,7 +19,5 @@ func TestString(t *testing.T) {
 		},
 	}
 
-	if program.String() != "let foo: int = bar;" {
-		t.Errorf("program.String() invalid, got=%q", program.String())
-	}
+	assert.Equal(t, program.String(), "let foo: int = bar;")
 }
