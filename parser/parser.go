@@ -6,6 +6,17 @@ import (
 	"github.com/s-bose/mox/token"
 )
 
+const (
+	_ int = iota
+	LOWEST
+	EQUALS
+	LESSGREATER
+	SUM
+	PRODUCT
+	PREFIX
+	CALL
+)
+
 type Parser struct {
 	l         *lexer.Lexer
 	curToken  token.Token
@@ -59,12 +70,14 @@ func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
 
-	statement := p.ParseStatement()
-	if statement != nil {
-		program.Statements = append(program.Statements, statement)
-	}
+	for p.curToken.Type != token.EOF {
+		statement := p.ParseStatement()
+		if statement != nil {
+			program.Statements = append(program.Statements, statement)
+		}
 
-	p.nextToken()
+		p.nextToken()
+	}
 
 	return program
 }

@@ -57,3 +57,7 @@ func ParseLetStatement(p *Parser) *ast.LetStatement {
 
 	return stmt
 }
+
+func parseExpressionStatement(p *Parser) *ast.Expression {
+	return nil
+}

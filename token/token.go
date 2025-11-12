@@ -99,3 +99,10 @@ func LookupIdent(ident string) TokenType {
 	}
 	return IDENT
 }
+
+func LookupDataType(ident string) TokenType {
+	if tok, ok := dataTypes[ident]; ok {
+		return tok
+	}
+	return IDENT
+}

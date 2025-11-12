@@ -99,3 +99,35 @@ impl Person {
     }
 }
 ```
+
+### Expressions
+
+Mox supports the following prefix operator Expressions
+
+```typescript
+-5             // (minus)
+!<expression>  // (bang)
+```
+
+And the following infix ops
+
+```ts
+a + - * / < > b
+==
+!=
+>=
+<=
+```
+
+
+### Imports (TBD)
+
+Every mox fils can be imported as a module.
+Imports are also an expression, so if-expressions and conditional imports are allowed in imports.
+
+
+```ts
+import { foo };
+import { foo.bar } bar;
+import { if (cond) foo else baz } jeff;
+```

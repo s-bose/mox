@@ -46,6 +46,11 @@ type Program struct {
 	Statements []Statement
 }
 
+type ExpressionStatement struct {
+	Token      token.Token
+	Expression Expression
+}
+
 func (p *Program) TokenLiteral() string {
 	if len(p.Statements) > 0 {
 		return p.Statements[0].TokenLiteral()
