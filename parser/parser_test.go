@@ -252,6 +252,20 @@ func TestOpPrecedenceParsing(t *testing.T) {
 	}
 }
 
+// func TestIfStatement(t *testing.T) {
+// 	input := `if (x < y) { x } else { y }`
+
+// 	l := lexer.New(input)
+// 	p := New(l)
+// 	program := p.ParseProgram()
+// 	checkParserErrors(t, p)
+
+// 	assert.Equal(t, len(program.Statements), 1)
+// 	stmt := program.Statements[0]
+// 	assert.IsType(t, stmt, &ast.G)
+
+// }
+
 func checkParserErrors(t *testing.T, p *Parser) {
 	errors := p.Errors()
 

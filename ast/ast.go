@@ -6,6 +6,7 @@ import (
 	"github.com/s-bose/mox/token"
 )
 
+// Interfaces
 type Node interface {
 	TokenLiteral() string
 	String() string
@@ -21,6 +22,7 @@ type Expression interface {
 	expressionNode()
 }
 
+// AST
 type Identifier struct {
 	Token token.Token
 	Value string
@@ -144,6 +146,68 @@ func (ie *InfixExpr) String() string {
 	return s.String()
 }
 func (ie *InfixExpr) expressionNode() {}
+
+type IfStatement struct {
+	/*
+		 * Rule
+		* IfStatement :== if "(" <Expression> ")" <Statement> else <Statement>
+	*/
+
+	Token      token.Token
+	Condition  Expression
+	ThenBranch Statement
+	ElseBranch Statement
+}
+
+func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *IfStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("if")
+	out.WriteString(is.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(is.ThenBranch.String())
+
+	if is.ElseBranch != nil {
+		out.WriteString(is.ElseBranch.String())
+	}
+
+	return out.String()
+}
+func (is *IfStatement) statementNode()
+
+type ElseStatement struct {
+	Token      token.Token
+	ThenBranch Statement
+}
+
+func (es *ElseStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *ElseStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("else")
+	out.WriteString(es.ThenBranch.String())
+
+	return out.String()
+}
+func (es *ElseStatement) statementNode() {}
+
+type BlockStatement struct {
+	Token      token.Token
+	Statements []Statement
+}
+
+func (bs *BlockStatement) statementNode()       {}
+func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BlockStatement) String() string {
+	var out bytes.Buffer
+
+	for _, s := range bs.Statements {
+		out.WriteString(s.String())
+	}
+
+	return out.String()
+}
 
 // Main Program
 type Program struct {
