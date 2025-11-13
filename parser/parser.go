@@ -55,6 +55,9 @@ func initParseFuncs(p *Parser) {
 	p.registerPrefixFunc(token.IDENT, p.parseIdentifier)
 	p.registerPrefixFunc(token.INT, p.parseIntegerExpr)
 	p.registerPrefixFunc(token.FLOAT, p.parseFloatExpr)
+	p.registerPrefixFunc(token.TRUE, p.parseBooleanExpr)
+	p.registerPrefixFunc(token.FALSE, p.parseBooleanExpr)
+	p.registerPrefixFunc(token.LPAREN, p.parseGroupedExpr)
 
 	p.registerPrefixFunc(token.BANG, p.parsePrefixExpr)
 	p.registerPrefixFunc(token.MINUS, p.parsePrefixExpr)
@@ -134,6 +137,16 @@ func (p *Parser) parseIdentifier() ast.Expression {
 }
 
 // Expression Parsers
+
+func (p *Parser) parseBooleanExpr() ast.Expression {
+	b := &ast.Boolean{
+		Token: p.curToken,
+		Value: p.curTokenIs(token.TRUE),
+	}
+
+	return b
+}
+
 func (p *Parser) parseIntegerExpr() ast.Expression {
 	il := &ast.IntegerLiteral{Token: p.curToken}
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
@@ -154,6 +167,17 @@ func (p *Parser) parseFloatExpr() ast.Expression {
 
 	fl.Value = value
 	return fl
+}
+
+func (p *Parser) parseGroupedExpr() ast.Expression {
+	p.nextToken()
+
+	exp := p.parseExpr(LOWEST)
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+
+	return exp
 }
 
 func (p *Parser) curTokenIs(t token.TokenType) bool {
@@ -191,8 +215,6 @@ func (p *Parser) ParseProgram() *ast.Program {
 }
 
 func (p *Parser) parsePrefixExpr() ast.Expression {
-	fmt.Printf("parsePrefixExpr() called for token %s\n", p.curToken.Literal)
-
 	expr := &ast.PrefixExpr{
 		Token: p.curToken,
 		Op:    p.curToken.Literal,
@@ -219,17 +241,13 @@ func (p *Parser) parseInfixExpr(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseExpr(precedence Precedence) ast.Expression {
-	fmt.Printf("parseExpr() called with precedence %d and curToken %s\n", precedence, p.curToken.Literal)
 	prefixFunc := p.prefixParseFuncs[p.curToken.Type]
 	if prefixFunc == nil {
 		p.addParseError(fmt.Sprintf("no prefix function exists for %s", p.curToken.Type))
 		return nil
 	}
-	fmt.Printf("prefixFunc is %T\n", prefixFunc)
 
 	leftExp := prefixFunc()
-	fmt.Printf("leftExp: %s\n", leftExp.String())
-	fmt.Printf("precedence: %d, peekPrecedence: %d\n", precedence, p.peekPrecedence())
 	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
 		infixFunc := p.infixParseFuncs[p.peekToken.Type]
 		if infixFunc == nil {

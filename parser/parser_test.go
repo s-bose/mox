@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/s-bose/mox/ast"
@@ -76,6 +75,27 @@ func TestReturnStatement(t *testing.T) {
 	}
 }
 
+func TestIntegerExpression(t *testing.T) {
+	inputs := []struct {
+		inputStr    string
+		expectedInt int64
+	}{
+		{"1;", 1},
+		{"1234;", 1234},
+	}
+
+	for _, tt := range inputs {
+		l := lexer.New(tt.inputStr)
+		p := New(l)
+
+		program := p.ParseProgram()
+		assert.Equal(t, len(program.Statements), 1)
+		stmt, _ := program.Statements[0].(*ast.ExpressionStatement)
+		intExpr, _ := stmt.Expression.(*ast.IntegerLiteral)
+		assert.Equal(t, intExpr.Value, tt.expectedInt)
+	}
+}
+
 func TestIdentifierExpression(t *testing.T) {
 	input := "foo;"
 
@@ -83,28 +103,13 @@ func TestIdentifierExpression(t *testing.T) {
 	p := New(l)
 
 	program := p.ParseProgram()
-	if len(program.Statements) != 1 {
-		t.Fatalf("program has not enough statements, expected %d", len(program.Statements))
-	}
 
-	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-	if !ok {
-		t.Fatalf("program missing expected statement, %T", program.Statements[0])
-	}
+	assert.Equal(t, len(program.Statements), 1)
+	stmt, _ := program.Statements[0].(*ast.ExpressionStatement)
+	ident, _ := stmt.Expression.(*ast.Identifier)
 
-	ident, ok := stmt.Expression.(*ast.Identifier)
-
-	if !ok {
-		t.Fatalf("expression not *ast.Identifier, got %T", stmt.Expression)
-	}
-	if ident.Value != "foo" {
-		t.Fatalf("ident.Value not %s, got %s", "foo", ident.Value)
-	}
-
-	if ident.TokenLiteral() != "foo" {
-		t.Fatalf("ident.TokenLiteral() not %s, got %s", "foo", ident.TokenLiteral())
-	}
-
+	assert.Equal(t, ident.Value, "foo")
+	assert.Equal(t, ident.TokenLiteral(), "foo")
 }
 
 func TestPrefixExpression(t *testing.T) {
@@ -122,29 +127,13 @@ func TestPrefixExpression(t *testing.T) {
 		p := New(l)
 
 		program := p.ParseProgram()
-		if len(program.Statements) != 1 {
-			t.Errorf("program.Statements contains %d statements, expected 1", len(program.Statements))
-		}
+		assert.Equal(t, len(program.Statements), 1)
+		stmt, _ := program.Statements[0].(*ast.ExpressionStatement)
+		exp, _ := stmt.Expression.(*ast.PrefixExpr)
 
-		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-
-		if !ok {
-			t.Fatalf("program.Statements[0] is of type %T, expected ast.ExpressionStatement", program.Statements[0])
-		}
-
-		exp, ok := stmt.Expression.(*ast.PrefixExpr)
-		if !ok {
-			t.Fatalf("stmt.Expression is of type %T, expected ast.PrefixExpr", stmt.Expression)
-		}
-
-		if exp.Op != tt.op {
-			t.Fatalf("expected op to be %s, got %s", tt.op, exp.Op)
-		}
-
+		assert.Equal(t, exp.Op, tt.op)
 		rval, _ := exp.Right.(*ast.IntegerLiteral)
-		if rval.Value != tt.intValue {
-			t.Fatalf("expected integer value to be %d, got %d", tt.intValue, rval.Value)
-		}
+		assert.Equal(t, rval.Value, tt.intValue)
 	}
 }
 
@@ -209,6 +198,46 @@ func TestOpPrecedenceParsing(t *testing.T) {
 			"3 + 4 * 5 == 3 * 1 + 4 * 5",
 			"((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
 		},
+		{
+			"3 + 4 <= 5",
+			"((3 + 4) <= 5)",
+		},
+		{
+			"true",
+			"true",
+		},
+		{
+			"false",
+			"false",
+		},
+		{
+			"2 < 3 == true",
+			"((2 < 3) == true)",
+		},
+		{
+			"3 < 2 == false",
+			"((3 < 2) == false)",
+		},
+		{
+			"1 + (2 + 3)",
+			"(1 + (2 + 3))",
+		},
+		{
+			"(5 + 5) * 2",
+			"((5 + 5) * 2)",
+		},
+		{
+			"2 / (5 + 5)",
+			"(2 / (5 + 5))",
+		},
+		{
+			"-(5 + 5)",
+			"(-(5 + 5))",
+		},
+		{
+			"!(true == true)",
+			"(!(true == true))",
+		},
 	}
 
 	for _, tt := range tests {
@@ -216,12 +245,27 @@ func TestOpPrecedenceParsing(t *testing.T) {
 
 		p := New(l)
 		program := p.ParseProgram()
-
-		fmt.Print(program.Statements[0])
+		checkParserErrors(t, p)
 		actual := program.String()
 
-		if actual != tt.expected {
-			t.Fatalf("expected statement to be %s, got %s", tt.expected, actual)
-		}
+		assert.Equal(t, actual, tt.expected)
 	}
+}
+
+func checkParserErrors(t *testing.T, p *Parser) {
+	errors := p.Errors()
+
+	if len(errors) == 0 {
+		return
+	}
+
+	if len(errors) != 0 {
+		t.Errorf("parser has %d errors", len(errors))
+	}
+
+	for _, msg := range errors {
+		t.Errorf("parser error: %q", msg)
+	}
+
+	t.FailNow()
 }

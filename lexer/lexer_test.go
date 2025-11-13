@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/s-bose/mox/token"
+	"github.com/stretchr/testify/assert"
 )
 
 type TokenExpectation struct {
@@ -13,7 +14,7 @@ type TokenExpectation struct {
 
 func TestNextToken(t *testing.T) {
 	input := `let five = 5;
-	const x: string = "hello world";`
+	const x: string = "hello";`
 
 	tests := []TokenExpectation{
 		{token.LET, "let"},
@@ -27,23 +28,18 @@ func TestNextToken(t *testing.T) {
 		{token.STRING, "string"},
 		{token.ASSIGN, "="},
 		{token.QUOTE, `"`},
-		{token.IDENT, "hello world"},
+		{token.IDENT, "hello"},
 		{token.QUOTE, `"`},
 		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 
 	l := New(input)
-	for i, tt := range tests {
+	for _, tt := range tests {
 		tok := l.NextToken()
-		if tok.Type != tt.expectedType {
-			t.Errorf("tests[%d] - token type is not %q. got=%q",
-				i, tt.expectedType, tok.Type)
-		}
-		if tok.Literal != tt.expectedLiteral {
-			t.Errorf("tests[%d] - token literal is not %q. got=%q",
-				i, tt.expectedLiteral, tok.Literal)
-		}
+
+		assert.Equal(t, tok.Type, tt.expectedType)
+		assert.Equal(t, tok.Literal, tt.expectedLiteral)
 	}
 }
 
@@ -72,15 +68,9 @@ func TestNextTokenOperator(t *testing.T) {
 		{token.EOF, ""},
 	}
 
-	for i, tt := range expectedTokens {
+	for _, tt := range expectedTokens {
 		tok := l.NextToken()
-		if tok.Type != tt.expectedType {
-			t.Errorf("tests[%d] - token type is not %q. got=%q",
-				i, tt.expectedType, tok.Type)
-		}
-		if tok.Literal != tt.expectedLiteral {
-			t.Errorf("tests[%d] - token literal is not %q. got=%q",
-				i, tt.expectedLiteral, tok.Literal)
-		}
+		assert.Equal(t, tok.Literal, tt.expectedLiteral)
+		assert.Equal(t, tok.Type, tt.expectedType)
 	}
 }

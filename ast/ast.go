@@ -97,6 +97,15 @@ func (il *FloatLiteral) TokenLiteral() string { return il.Token.Literal }
 func (il *FloatLiteral) String() string       { return il.TokenLiteral() }
 func (il *FloatLiteral) expressionNode()      {}
 
+type Boolean struct {
+	Token token.Token
+	Value bool
+}
+
+func (b *Boolean) TokenLiteral() string { return b.Token.Literal }
+func (b *Boolean) String() string       { return b.TokenLiteral() }
+func (b *Boolean) expressionNode()      {}
+
 type PrefixExpr struct {
 	Token token.Token
 	Op    string
