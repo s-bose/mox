@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/s-bose/mox/token"
 )
@@ -28,10 +29,27 @@ type Identifier struct {
 	Value string
 }
 
+type IdentifierWithType struct {
+	Identifier
+	Type *Identifier
+}
+
 func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 func (i *Identifier) String() string {
 	return i.Value
+}
+
+func (it *IdentifierWithType) expressionNode()      {}
+func (it *IdentifierWithType) TokenLiteral() string { return it.Token.Literal }
+func (it *IdentifierWithType) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(it.Value)
+	if it.Type != nil {
+		out.WriteString(": " + it.Type.String())
+	}
+	return out.String()
 }
 
 type LetStatement struct {
@@ -147,20 +165,56 @@ func (ie *InfixExpr) String() string {
 }
 func (ie *InfixExpr) expressionNode() {}
 
-type IfStatement struct {
+type FunctionLiteral struct {
+	Token      token.Token
+	Params     []*IdentifierWithType
+	Defaults   map[string]Expression
+	Body       *BlockStatement
+	ReturnType *Identifier
+}
+
+func (fs *FunctionLiteral) TokenLiteral() string { return fs.Token.Literal }
+func (fs *FunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("fn")
+	out.WriteString(fs.Token.Literal)
+	out.WriteString("(")
+
+	params := []string{}
+	for _, p := range fs.Params {
+		params = append(params, p.String())
+	}
+
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(")")
+	// return type
+	if fs.ReturnType != nil {
+		out.WriteString(": " + fs.ReturnType.String())
+	}
+	out.WriteString(" {")
+	out.WriteString(fs.Body.String())
+	out.WriteString(" }")
+
+	return out.String()
+}
+func (fs *FunctionLiteral) statementNode() {}
+
+type IfExpression struct {
 	/*
 		 * Rule
-		* IfStatement :== if "(" <Expression> ")" <Statement> else <Statement>
+		* IfExpression
+		*  :== if "(" <Expression> ")" <Statement> else <Statement>
 	*/
 
 	Token      token.Token
 	Condition  Expression
-	ThenBranch Statement
-	ElseBranch Statement
+	ThenBranch *BlockStatement
+	ElseBranch *BlockStatement
 }
 
-func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
-func (is *IfStatement) String() string {
+func (is *IfExpression) TokenLiteral() string { return is.Token.Literal }
+func (is *IfExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("if")
@@ -169,12 +223,13 @@ func (is *IfStatement) String() string {
 	out.WriteString(is.ThenBranch.String())
 
 	if is.ElseBranch != nil {
+		out.WriteString("else")
 		out.WriteString(is.ElseBranch.String())
 	}
 
 	return out.String()
 }
-func (is *IfStatement) statementNode() {}
+func (is *IfExpression) expressionNode() {}
 
 type ElseStatement struct {
 	Token      token.Token

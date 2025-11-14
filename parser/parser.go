@@ -58,6 +58,7 @@ func initParseFuncs(p *Parser) {
 	p.registerPrefixFunc(token.TRUE, p.parseBooleanExpr)
 	p.registerPrefixFunc(token.FALSE, p.parseBooleanExpr)
 	p.registerPrefixFunc(token.LPAREN, p.parseGroupedExpr)
+	p.registerPrefixFunc(token.IF, p.parseIfExpr)
 
 	p.registerPrefixFunc(token.BANG, p.parsePrefixExpr)
 	p.registerPrefixFunc(token.MINUS, p.parsePrefixExpr)
@@ -134,6 +135,28 @@ func (p *Parser) parseIdentifier() ast.Expression {
 		Token: p.curToken,
 		Value: p.curToken.Literal,
 	}
+}
+
+func (p *Parser) parseIdentifierWithType() *ast.IdentifierWithType {
+
+	ident := &ast.IdentifierWithType{
+		Identifier: ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		},
+	}
+
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken()
+		typToken := &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+
+		ident.Type = typToken
+	}
+	return ident
+
 }
 
 // Expression Parsers
@@ -355,7 +378,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return stmt
 }
 
-func (p *Parser) parseBlockStatement() ast.Statement {
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		Token: p.curToken,
 	}
@@ -374,62 +397,145 @@ func (p *Parser) parseBlockStatement() ast.Statement {
 	return block
 }
 
-func (p *Parser) parseIfStatement() ast.Statement {
-	stmt := &ast.IfStatement{
-		Token: p.curToken,
+func (p *Parser) parseFunctionParameters() []*ast.IdentifierWithType {
+	idents := []*ast.IdentifierWithType{}
+
+	if p.peekTokenIs(token.RPAREN) {
+		// return parsed params on closing braces: ")"
+		p.nextToken()
+		return idents
 	}
 
-	if !p.expectPeek(token.LPAREN) {
-		return nil
-	}
 	p.nextToken()
-	cond := p.parseExpr(LOWEST)
-	stmt.Condition = cond
+	ident := p.parseIdentifierWithType()
+	idents = append(idents, ident)
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // skip comma
+		p.nextToken() // parse next ident: type
+
+		ident := p.parseIdentifierWithType()
+		idents = append(idents, ident)
+	}
 
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}
 
-	if !p.expectPeek(token.LBRACE) {
+	return idents
+}
+
+func (p *Parser) parseFunctionLiteral() *ast.FunctionLiteral {
+	/*
+		 * Parses a function statement
+			* functionStatement :== function <Identifier> "(" <args...>, <args: type>, <args: type "=" <Identifier>> ): <returnTypeIdentifier>
+			* 						"{" <blockStatement> "}"
+		 	* Examples
+				* function foobar(a: int, b: string, c: MyClass = DEFAULT) {
+				* 	return a + b;
+				}
+				return p.parseElseStatement()
+	*/
+
+	stmt := &ast.FunctionLiteral{
+		Token: p.curToken, // stores `fn`
+	}
+
+	if !p.expectPeek(token.LPAREN) {
 		return nil
 	}
 
-	fmt.Printf("curToken: %s\n", p.curToken.Literal)
-	blockStmt := p.parseBlockStatement()
+	stmt.Params = p.parseFunctionParameters()
 
-	fmt.Printf("blockStmt: %s\n", blockStmt.String())
-	stmt.ThenBranch = blockStmt
-
-	fmt.Printf("peekToken: %s\n", p.peekToken.Literal)
-	if p.expectPeek(
-		token.ELSE,
-	) {
-		// parse ELSE block
-		elseStmt := p.parseElseStatement()
-		fmt.Printf("elseStmt: %s", elseStmt)
-		stmt.ElseBranch = elseStmt
+	if !p.expectPeek(token.RBRACE) {
+		return nil
 	}
+
+	if p.expectPeek(token.COLON) {
+		// colon `:` signifies an optional return type annotation
+		// this is optional, so we can proceed regardless
+
+		p.nextToken()
+		ret := &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+		stmt.ReturnType = ret
+	}
+
+	stmt.Body = p.parseBlockStatement()
 
 	return stmt
 }
 
-func (p *Parser) parseElseStatement() ast.Statement {
-	fmt.Printf("curtoken: %s", p.curToken.Literal)
+func (p *Parser) parseBracketExpression() ast.Expression {
+	if !p.expectPeek(token.LPAREN) {
+		p.addParseError(fmt.Sprintf("expected '(' but got %s", p.curToken.Literal))
+		return nil
+	}
 
-	stmt := &ast.ElseStatement{
+	p.nextToken()
+	expr := p.parseExpr(LOWEST)
+	if expr == nil {
+		return nil
+	}
+
+	if !p.expectPeek(token.RPAREN) {
+		p.addParseError(fmt.Sprintf("expected ')' but got %s", p.curToken.Literal))
+		return nil
+	}
+
+	return expr
+}
+
+func (p *Parser) parseIfExpr() ast.Expression {
+	stmt := &ast.IfExpression{
 		Token: p.curToken,
 	}
 
-	if p.expectPeek(token.LBRACE) {
-		// peekToken: { means it is a leaf statement
-
-		stmt.ThenBranch = p.parseBlockStatement()
-	} else if p.expectPeek(token.IF) {
-		// peekToken: if means there is a secondary if statement
-
-		stmt.ThenBranch = p.parseIfStatement()
-	} else {
+	cond := p.parseBracketExpression()
+	if cond == nil {
 		return nil
+	}
+	stmt.Condition = cond
+
+	fmt.Println(stmt.Condition.String())
+
+	// parse then clause { ... }
+
+	if !p.expectPeek(token.LBRACE) {
+		p.addParseError(fmt.Sprintf("expected '{' but got %s", p.curToken.Literal))
+		return nil
+	}
+
+	blockStmt := p.parseBlockStatement()
+	stmt.ThenBranch = blockStmt
+
+	// else block
+	if p.peekTokenIs(token.ELSE) {
+		p.nextToken()
+
+		// `else if`
+		if p.peekTokenIs(token.IF) {
+			p.nextToken()
+
+			stmt.ElseBranch = &ast.BlockStatement{
+				Statements: []ast.Statement{
+					&ast.ExpressionStatement{
+						Expression: p.parseIfExpr(),
+					},
+				},
+			}
+
+			return stmt
+		}
+
+		if !p.expectPeek(token.LBRACE) {
+			p.addParseError(fmt.Sprintf("expected '{' but got %s", p.curToken.Literal))
+			return nil
+		}
+
+		stmt.ElseBranch = p.parseBlockStatement()
 	}
 	return stmt
 }
@@ -440,10 +546,6 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
-	case token.IF:
-		return p.parseIfStatement()
-	case token.ELSE:
-		return p.parseElseStatement()
 	default:
 		return p.parseExpressionStatement()
 	}

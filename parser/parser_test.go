@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/s-bose/mox/ast"
@@ -263,15 +262,14 @@ func TestIfStatement(t *testing.T) {
 
 	assert.Equal(t, len(program.Statements), 1)
 	stmt := program.Statements[0]
-	fmt.Println(stmt.String())
-	assert.IsType(t, stmt, &ast.IfStatement{})
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
 
-	is, _ := stmt.(*ast.IfStatement)
-	assert.Equal(t, is.TokenLiteral(), "if")
-	assert.Equal(t, is.Condition.String(), "(x < y)")
-	assert.Equal(t, is.ThenBranch.String(), "x")
-	assert.Equal(t, is.ElseBranch.TokenLiteral(), "else")
-	assert.Equal(t, is.ElseBranch.String(), "y")
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	is, _ := exp.(*ast.IfExpression)
+	assert.Equal(t, "if", is.TokenLiteral())
+	assert.Equal(t, "(x < y)", is.Condition.String())
+	assert.Equal(t, "x", is.ThenBranch.String())
+	assert.Equal(t, "y", is.ElseBranch.String())
 }
 
 func TestIfStatementWithElseIfStatement(t *testing.T) {
@@ -283,22 +281,43 @@ func TestIfStatementWithElseIfStatement(t *testing.T) {
 	program := p.ParseProgram()
 
 	assert.Equal(t, 1, len(program.Statements))
-	stmt, ok := program.Statements[0].(*ast.IfStatement)
-	assert.NotEqual(t, ok, nil)
+	stmt := program.Statements[0]
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	is, _ := exp.(*ast.IfExpression)
 
-	assert.Equal(t, stmt.TokenLiteral(), "if")
-	assert.Equal(t, stmt.Condition.String(), "(x <= y)")
-	assert.Equal(t, stmt.ThenBranch.String(), "x")
+	assert.Equal(t, "if", is.TokenLiteral())
+	assert.Equal(t, "(x <= y)", is.Condition.String())
 
-	fmt.Println(stmt.ElseBranch.String())
-	elseStmt, _ := stmt.ElseBranch.(*ast.ElseStatement)
-	assert.Equal(t, elseStmt.TokenLiteral(), "else")
+	assert.Equal(t, is.ThenBranch.String(), "x")
+	elseBranchStmt, _ := is.ElseBranch.Statements[0].(*ast.ExpressionStatement)
+	elseExpr := elseBranchStmt.Expression
+	assert.IsType(t, &ast.IfExpression{}, elseExpr)
 
-	elseIfStmt, _ := elseStmt.ThenBranch.(*ast.IfStatement)
-	assert.Equal(t, elseIfStmt.TokenLiteral(), "if")
-	assert.Equal(t, elseIfStmt.Condition.String(), "(x < y)")
-	assert.Equal(t, elseIfStmt.ThenBranch.String(), "z")
+	elseIfExpr, _ := elseExpr.(*ast.IfExpression)
+
+	assert.Equal(t, "if", elseIfExpr.TokenLiteral())
+	assert.Equal(t, "(x < y)", elseIfExpr.Condition.String())
+	assert.Equal(t, "z", elseIfExpr.ThenBranch.String())
 }
+
+// func TestFunctionStatement(t *testing.T) {
+// 	input := `fn hello(a, b, c: int) { return a + b + c; }`
+
+// 	l := lexer.New(input)
+// 	p := New(l)
+
+// 	program := p.ParseProgram()
+
+// 	for _, tmt := range program.Statements {
+// 		fmt.Println(tmt)
+// 	}
+// 	assert.NotEmpty(t, program.Statements)
+// 	assert.Equal(t, 1, len(program.Statements))
+// 	stmt := program.Statements[0]
+
+// 	assert.NotNil(t, stmt)
+// }
 
 func checkParserErrors(t *testing.T, p *Parser) {
 	errors := p.Errors()
