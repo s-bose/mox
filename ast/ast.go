@@ -174,7 +174,7 @@ func (is *IfStatement) String() string {
 
 	return out.String()
 }
-func (is *IfStatement) statementNode()
+func (is *IfStatement) statementNode() {}
 
 type ElseStatement struct {
 	Token      token.Token

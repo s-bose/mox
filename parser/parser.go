@@ -394,16 +394,43 @@ func (p *Parser) parseIfStatement() ast.Statement {
 		return nil
 	}
 
-	stmt.ThenBranch = p.parseBlockStatement()
+	fmt.Printf("curToken: %s\n", p.curToken.Literal)
+	blockStmt := p.parseBlockStatement()
 
+	fmt.Printf("blockStmt: %s\n", blockStmt.String())
+	stmt.ThenBranch = blockStmt
+
+	fmt.Printf("peekToken: %s\n", p.peekToken.Literal)
 	if p.expectPeek(
 		token.ELSE,
 	) {
 		// parse ELSE block
-
-		return nil
+		elseStmt := p.parseElseStatement()
+		fmt.Printf("elseStmt: %s", elseStmt)
+		stmt.ElseBranch = elseStmt
 	}
 
+	return stmt
+}
+
+func (p *Parser) parseElseStatement() ast.Statement {
+	fmt.Printf("curtoken: %s", p.curToken.Literal)
+
+	stmt := &ast.ElseStatement{
+		Token: p.curToken,
+	}
+
+	if p.expectPeek(token.LBRACE) {
+		// peekToken: { means it is a leaf statement
+
+		stmt.ThenBranch = p.parseBlockStatement()
+	} else if p.expectPeek(token.IF) {
+		// peekToken: if means there is a secondary if statement
+
+		stmt.ThenBranch = p.parseIfStatement()
+	} else {
+		return nil
+	}
 	return stmt
 }
 
@@ -415,6 +442,8 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseReturnStatement()
 	case token.IF:
 		return p.parseIfStatement()
+	case token.ELSE:
+		return p.parseElseStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
