@@ -79,8 +79,8 @@ func (ls *LetStatement) String() string {
 }
 
 type ReturnStatement struct {
-	Token token.Token
-	Value Expression
+	Token       token.Token
+	ReturnValue Expression
 }
 
 func (rs *ReturnStatement) statementNode()       {}
@@ -89,8 +89,8 @@ func (rs *ReturnStatement) String() string {
 	var s bytes.Buffer
 
 	s.WriteString(rs.TokenLiteral() + " ")
-	if rs.Value != nil {
-		s.WriteString(rs.Value.String())
+	if rs.ReturnValue != nil {
+		s.WriteString(rs.ReturnValue.String())
 	}
 
 	s.WriteString(";")
@@ -167,7 +167,8 @@ func (ie *InfixExpr) expressionNode() {}
 
 type FunctionLiteral struct {
 	Token      token.Token
-	Params     []*IdentifierWithType
+	Params     []*Identifier
+	ParamType  map[string]*Identifier
 	Defaults   map[string]Expression
 	Body       *BlockStatement
 	ReturnType *Identifier
@@ -198,7 +199,7 @@ func (fs *FunctionLiteral) String() string {
 
 	return out.String()
 }
-func (fs *FunctionLiteral) statementNode() {}
+func (fs *FunctionLiteral) expressionNode() {}
 
 type IfExpression struct {
 	/*

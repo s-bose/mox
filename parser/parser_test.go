@@ -1,12 +1,39 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/s-bose/mox/ast"
 	"github.com/s-bose/mox/lexer"
 	"github.com/stretchr/testify/assert"
 )
+
+func initParser(input string) *ast.Program {
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	return program
+}
+
+func checkParserErrors(t *testing.T, p *Parser) {
+	errors := p.Errors()
+
+	if len(errors) == 0 {
+		return
+	}
+
+	if len(errors) != 0 {
+		t.Errorf("parser has %d errors", len(errors))
+	}
+
+	for _, msg := range errors {
+		t.Errorf("parser error: %q", msg)
+	}
+
+	t.FailNow()
+}
 
 func TestLetStatements(t *testing.T) {
 	input := `
@@ -301,38 +328,76 @@ func TestIfStatementWithElseIfStatement(t *testing.T) {
 	assert.Equal(t, "z", elseIfExpr.ThenBranch.String())
 }
 
-// func TestFunctionStatement(t *testing.T) {
-// 	input := `fn hello(a, b, c: int) { return a + b + c; }`
+func TestFunctionExpressionSimple(t *testing.T) {
+	input := `fn hello(a, b) { return a+b; }`
 
-// 	l := lexer.New(input)
-// 	p := New(l)
+	l := lexer.New(input)
+	p := New(l)
 
-// 	program := p.ParseProgram()
+	program := p.ParseProgram()
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	fs, _ := exp.(*ast.FunctionLiteral)
 
-// 	for _, tmt := range program.Statements {
-// 		fmt.Println(tmt)
-// 	}
-// 	assert.NotEmpty(t, program.Statements)
-// 	assert.Equal(t, 1, len(program.Statements))
-// 	stmt := program.Statements[0]
+	assert.Equal(t, "hello", fs.TokenLiteral())
+	fmt.Println(fs)
+	assert.Equal(t, 2, len(fs.Params))
 
-// 	assert.NotNil(t, stmt)
-// }
+	assert.Equal(t, "a", fs.Params[0].Token.Literal)
+	assert.Equal(t, "b", fs.Params[1].Token.Literal)
 
-func checkParserErrors(t *testing.T, p *Parser) {
-	errors := p.Errors()
+	assert.Empty(t, fs.Defaults)
+	assert.Empty(t, fs.ParamType)
+	assert.Nil(t, fs.ReturnType)
 
-	if len(errors) == 0 {
-		return
-	}
+	assert.NotNil(t, fs.Body)
+	body := fs.Body
+	assert.Equal(t, 1, len(body.Statements))
+	bodyStmt := body.Statements[0]
 
-	if len(errors) != 0 {
-		t.Errorf("parser has %d errors", len(errors))
-	}
+	returnStmt := bodyStmt.(*ast.ReturnStatement)
+	assert.Equal(t, "return", returnStmt.TokenLiteral())
+	assert.Equal(t, "(a + b)", returnStmt.ReturnValue.String())
+}
 
-	for _, msg := range errors {
-		t.Errorf("parser error: %q", msg)
-	}
+func TestFunctionExpressionWithTypesAndDefault(t *testing.T) {
+	input := `fn helloWithType(a: int, b: string, c: int = 10): string { return b; }`
 
-	t.FailNow()
+	program := initParser(input)
+
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	fs, _ := exp.(*ast.FunctionLiteral)
+
+	assert.Equal(t, "helloWithType", fs.TokenLiteral())
+	fmt.Println(fs)
+	assert.Equal(t, 3, len(fs.Params))
+
+	assert.Equal(t, "a", fs.Params[0].Token.Literal)
+	assert.Equal(t, "b", fs.Params[1].Token.Literal)
+	assert.Equal(t, "c", fs.Params[2].Token.Literal)
+
+	assert.NotEmpty(t, fs.Defaults)
+	assert.Equal(t, "10", fs.Defaults["c"].TokenLiteral())
+	assert.Nil(t, fs.Defaults["a"])
+	assert.Nil(t, fs.Defaults["b"])
+
+	assert.NotEmpty(t, fs.ParamType)
+	assert.Equal(t, "int", fs.ParamType["a"].TokenLiteral())
+	assert.Equal(t, "string", fs.ParamType["b"].TokenLiteral())
+	assert.Equal(t, "int", fs.ParamType["c"].TokenLiteral())
+
+	assert.NotNil(t, fs.ReturnType)
+	assert.Equal(t, "string", fs.ReturnType.TokenLiteral())
+
+	assert.NotNil(t, fs.Body)
+	body := fs.Body
+	assert.Equal(t, 1, len(body.Statements))
+	bodyStmt := body.Statements[0]
+
+	returnStmt := bodyStmt.(*ast.ReturnStatement)
+	assert.Equal(t, "return", returnStmt.TokenLiteral())
+	assert.Equal(t, "b", returnStmt.ReturnValue.String())
 }

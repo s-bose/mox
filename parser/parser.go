@@ -59,6 +59,7 @@ func initParseFuncs(p *Parser) {
 	p.registerPrefixFunc(token.FALSE, p.parseBooleanExpr)
 	p.registerPrefixFunc(token.LPAREN, p.parseGroupedExpr)
 	p.registerPrefixFunc(token.IF, p.parseIfExpr)
+	p.registerPrefixFunc(token.FUNCTION, p.parseFunctionExpr)
 
 	p.registerPrefixFunc(token.BANG, p.parsePrefixExpr)
 	p.registerPrefixFunc(token.MINUS, p.parsePrefixExpr)
@@ -299,9 +300,10 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 
 	p.nextToken()
-	// skip next tokens until we hit semicolon
+	stmt.ReturnValue = p.parseExpr(LOWEST)
 
-	if !p.curTokenIs(token.SEMICOLON) {
+	// skip next tokens until we hit semicolon
+	for !p.curTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 
@@ -379,6 +381,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	fmt.Printf("curtoken: %s\n", p.curToken.Literal)
 	block := &ast.BlockStatement{
 		Token: p.curToken,
 	}
@@ -397,70 +400,110 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	return block
 }
 
-func (p *Parser) parseFunctionParameters() []*ast.IdentifierWithType {
-	idents := []*ast.IdentifierWithType{}
+func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, map[string]*ast.Identifier, map[string]ast.Expression) {
+	argumentTypes := make(map[string]*ast.Identifier)
+	argumentDefaults := make(map[string]ast.Expression)
 
+	idents := make([]*ast.Identifier, 0)
 	if p.peekTokenIs(token.RPAREN) {
 		// return parsed params on closing braces: ")"
 		p.nextToken()
-		return idents
+		return idents, argumentTypes, argumentDefaults
 	}
 
 	p.nextToken()
-	ident := p.parseIdentifierWithType()
-	idents = append(idents, ident)
+	for !p.curTokenIs(token.RPAREN) {
+		if p.curTokenIs(token.EOF) {
+			p.addParseError(fmt.Sprintf("unexpected EOF on function parameters"))
+			return nil, nil, nil
+		}
 
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken() // skip comma
-		p.nextToken() // parse next ident: type
+		ident := &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
 
-		ident := p.parseIdentifierWithType()
 		idents = append(idents, ident)
+		p.nextToken()
+
+		if p.curTokenIs(token.COLON) {
+			// ident: type
+			p.nextToken() // get the type token after `:`
+			typeIdent := &ast.Identifier{
+				Token: p.curToken,
+				Value: p.curToken.Literal,
+			}
+			argumentTypes[ident.Value] = typeIdent
+			p.nextToken()
+		}
+
+		if p.curTokenIs(token.ASSIGN) {
+			p.nextToken()
+			argumentDefaults[ident.Value] = p.parseExpressionStatement().Expression
+			p.nextToken()
+		}
+
+		if p.curTokenIs(token.COMMA) {
+			p.nextToken()
+		}
 	}
 
-	if !p.expectPeek(token.RPAREN) {
-		return nil
-	}
-
-	return idents
+	return idents, argumentTypes, argumentDefaults
 }
 
-func (p *Parser) parseFunctionLiteral() *ast.FunctionLiteral {
+func (p *Parser) parseFunctionExpr() ast.Expression {
 	/*
 		 * Parses a function statement
-			* functionStatement :== function <Identifier> "(" <args...>, <args: type>, <args: type "=" <Identifier>> ): <returnTypeIdentifier>
+			* functionStatement :== fn <Identifier> "(" <args...>, <args: type>, <args: type "=" <Identifier>> ): <returnTypeIdentifier>
 			* 						"{" <blockStatement> "}"
 		 	* Examples
-				* function foobar(a: int, b: string, c: MyClass = DEFAULT) {
+				* fn foobar(a: int, b: string, c: MyClass = DEFAULT) {
 				* 	return a + b;
 				}
 				return p.parseElseStatement()
 	*/
 
+	// reference example: fn hello(a: int = 100): string { ... }
+
+	// -- fn
+	p.nextToken()
+	// -- hello
 	stmt := &ast.FunctionLiteral{
-		Token: p.curToken, // stores `fn`
+		Token: p.curToken, // stores `hello`
 	}
 
+	// -- (
 	if !p.expectPeek(token.LPAREN) {
 		return nil
 	}
 
-	stmt.Params = p.parseFunctionParameters()
+	// [ a ], {a: int}, {a: 100}
+	args, argTypes, argDefaults := p.parseFunctionParameters()
+	stmt.Params = args
+	stmt.ParamType = argTypes
+	stmt.Defaults = argDefaults
 
-	if !p.expectPeek(token.RBRACE) {
+	// -- )
+	if !p.curTokenIs(token.RPAREN) {
 		return nil
 	}
 
-	if p.expectPeek(token.COLON) {
-		// colon `:` signifies an optional return type annotation
-		// this is optional, so we can proceed regardless
-
-		p.nextToken()
-		ret := &ast.Identifier{
+	// -- : string
+	if p.peekTokenIs(token.COLON) {
+		// variable : type
+		p.nextToken() // consume `:`
+		p.nextToken() // type(string)
+		retTypeIdent := &ast.Identifier{
 			Token: p.curToken,
 			Value: p.curToken.Literal,
 		}
-		stmt.ReturnType = ret
+
+		stmt.ReturnType = retTypeIdent
+	}
+
+	// {
+	if !p.expectPeek(token.LBRACE) {
+		return nil
 	}
 
 	stmt.Body = p.parseBlockStatement()
