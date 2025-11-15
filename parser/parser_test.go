@@ -328,7 +328,7 @@ func TestIfStatementWithElseIfStatement(t *testing.T) {
 	assert.Equal(t, "z", elseIfExpr.ThenBranch.String())
 }
 
-func TestFunctionExpressionSimple(t *testing.T) {
+func TestFunctionStatementSimple(t *testing.T) {
 	input := `fn hello(a, b) { return a+b; }`
 
 	l := lexer.New(input)
@@ -337,10 +337,10 @@ func TestFunctionExpressionSimple(t *testing.T) {
 	program := p.ParseProgram()
 	assert.Equal(t, 1, len(program.Statements))
 	stmt := program.Statements[0]
-	exp := stmt.(*ast.ExpressionStatement).Expression
-	fs, _ := exp.(*ast.FunctionLiteral)
+	fs, _ := stmt.(*ast.FunctionStatement)
 
-	assert.Equal(t, "hello", fs.TokenLiteral())
+	assert.Equal(t, "fn", fs.TokenLiteral())
+	assert.Equal(t, "hello", fs.Name.TokenLiteral())
 	fmt.Println(fs)
 	assert.Equal(t, 2, len(fs.Params))
 
@@ -368,10 +368,10 @@ func TestFunctionExpressionWithTypesAndDefault(t *testing.T) {
 
 	assert.Equal(t, 1, len(program.Statements))
 	stmt := program.Statements[0]
-	exp := stmt.(*ast.ExpressionStatement).Expression
-	fs, _ := exp.(*ast.FunctionLiteral)
+	fs, _ := stmt.(*ast.FunctionStatement)
 
-	assert.Equal(t, "helloWithType", fs.TokenLiteral())
+	assert.Equal(t, "fn", fs.TokenLiteral())
+	assert.Equal(t, "helloWithType", fs.Name.TokenLiteral())
 	fmt.Println(fs)
 	assert.Equal(t, 3, len(fs.Params))
 
@@ -400,4 +400,93 @@ func TestFunctionExpressionWithTypesAndDefault(t *testing.T) {
 	returnStmt := bodyStmt.(*ast.ReturnStatement)
 	assert.Equal(t, "return", returnStmt.TokenLiteral())
 	assert.Equal(t, "b", returnStmt.ReturnValue.String())
+}
+
+func TestClassDeclaration(t *testing.T) {
+	input := `class Foo(Base) {}`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	for _, err := range p.errors {
+		fmt.Println(err)
+	}
+
+	assert.Equal(t, 1, len(program.Statements))
+
+	stmt := program.Statements[0].(*ast.ClassDeclStatement)
+	assert.Equal(t, "class", stmt.TokenLiteral())
+	assert.Equal(t, "Foo", stmt.Name.String())
+	assert.NotNil(t, stmt.SuperClass)
+	assert.Equal(t, "Base", stmt.SuperClass.String())
+
+	assert.Empty(t, stmt.Fields)
+	assert.Empty(t, stmt.Methods)
+}
+
+func TestClassDeclarationWithFieldsMethods(t *testing.T) {
+	input := `class Foo(Base) {
+		a: int;
+		b: int = 123;
+		fn hello(a, b) {
+			return a+b;
+		}
+	}`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	for _, err := range p.errors {
+		fmt.Println(err)
+	}
+
+	assert.Equal(t, 1, len(program.Statements))
+
+	stmt := program.Statements[0].(*ast.ClassDeclStatement)
+	assert.Equal(t, "class", stmt.TokenLiteral())
+	assert.Equal(t, "Foo", stmt.Name.String())
+	assert.NotNil(t, stmt.SuperClass)
+	assert.Equal(t, "Base", stmt.SuperClass.String())
+
+	assert.NotEmpty(t, stmt.Fields)
+	assert.NotEmpty(t, stmt.Methods)
+
+	assert.Equal(t, 2, len(stmt.Fields))
+	assert.Equal(t, "a", stmt.Fields[0].Name.String())
+	assert.Equal(t, "int", stmt.Fields[1].Type.String())
+
+	assert.Equal(t, 1, len(stmt.Methods))
+	assert.Equal(t, "hello", stmt.Methods[0].Name.String())
+	assert.Equal(t, 2, len(stmt.Methods[0].Params))
+}
+
+func TestVarStatement(t *testing.T) {
+	input := `x: int;`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt := p.parseClassVarStatement()
+	fmt.Print(p.errors)
+	assert.NotNil(t, stmt)
+
+	assert.Equal(t, "x", stmt.Name.String())
+	assert.Equal(t, "int", stmt.Type.String())
+}
+
+func TestVarStatementWithDefault(t *testing.T) {
+	input := `x: int = 123;`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	stmt := p.parseClassVarStatement()
+	fmt.Print(p.errors)
+	assert.NotNil(t, stmt)
+
+	assert.Equal(t, "x", stmt.Name.String())
+	assert.Equal(t, "int", stmt.Type.String())
+	assert.Equal(t, "123", stmt.Default.String())
 }

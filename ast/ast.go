@@ -81,10 +81,60 @@ func (rs *ReturnStatement) String() string {
 	return s.String()
 }
 
+type ClassVarStatement struct {
+	Name    *Identifier
+	Type    *Identifier
+	Default Expression
+}
+
+func (cv *ClassVarStatement) statementNode()       {}
+func (cv *ClassVarStatement) TokenLiteral() string { return cv.Name.String() } // `var`
+func (cv *ClassVarStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(cv.Name.String())
+	if cv.Type != nil {
+		out.WriteString(": " + cv.Type.String())
+	}
+
+	if cv.Default != nil {
+		out.WriteString(" = " + cv.Default.String())
+	}
+
+	return out.String()
+}
+
 type ClassDeclStatement struct {
 	Token      token.Token // holds the class name
+	Name       *Identifier
 	SuperClass *Identifier
+	Fields     []*ClassVarStatement
+	Methods    []*FunctionStatement
 }
+
+func (cs *ClassDeclStatement) TokenLiteral() string { return cs.Token.Literal } // `class`
+func (cs *ClassDeclStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(cs.TokenLiteral())
+	out.WriteString(" " + cs.Name.String())
+	if cs.SuperClass != nil {
+		out.WriteString("(" + cs.SuperClass.String() + ")")
+	}
+
+	out.WriteString(" {")
+	for _, field := range cs.Fields {
+		out.WriteString(field.String() + "\n")
+	}
+
+	for _, meth := range cs.Methods {
+		out.WriteString(meth.String() + "\n")
+	}
+	out.WriteString("}")
+
+	return out.String()
+}
+func (cs *ClassDeclStatement) statementNode() {}
 
 // Expression Nodes
 type IntegerLiteral struct {
@@ -153,8 +203,10 @@ func (ie *InfixExpr) String() string {
 }
 func (ie *InfixExpr) expressionNode() {}
 
-type FunctionLiteral struct {
-	Token      token.Token
+type FunctionStatement struct {
+	Token token.Token
+
+	Name       *Identifier
 	Params     []*Identifier
 	ParamType  map[string]*Identifier
 	Defaults   map[string]Expression
@@ -162,12 +214,13 @@ type FunctionLiteral struct {
 	ReturnType *Identifier
 }
 
-func (fs *FunctionLiteral) TokenLiteral() string { return fs.Token.Literal }
-func (fs *FunctionLiteral) String() string {
+func (fs *FunctionStatement) statementNode()       {}
+func (fs *FunctionStatement) TokenLiteral() string { return fs.Token.Literal }
+func (fs *FunctionStatement) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("fn")
-	out.WriteString(fs.Token.Literal)
+	out.WriteString(fs.TokenLiteral())
+	out.WriteString(" " + fs.Name.TokenLiteral())
 	out.WriteString("(")
 
 	params := []string{}
@@ -177,17 +230,17 @@ func (fs *FunctionLiteral) String() string {
 
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(")")
-	// return type
+
 	if fs.ReturnType != nil {
 		out.WriteString(": " + fs.ReturnType.String())
 	}
-	out.WriteString(" {")
+
+	out.WriteString("{")
 	out.WriteString(fs.Body.String())
-	out.WriteString(" }")
+	out.WriteString("}")
 
 	return out.String()
 }
-func (fs *FunctionLiteral) expressionNode() {}
 
 type IfExpression struct {
 	/*

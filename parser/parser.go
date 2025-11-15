@@ -59,7 +59,6 @@ func initParseFuncs(p *Parser) {
 	p.registerPrefixFunc(token.FALSE, p.parseBooleanExpr)
 	p.registerPrefixFunc(token.LPAREN, p.parseGroupedExpr)
 	p.registerPrefixFunc(token.IF, p.parseIfExpr)
-	p.registerPrefixFunc(token.FUNCTION, p.parseFunctionExpr)
 
 	p.registerPrefixFunc(token.BANG, p.parsePrefixExpr)
 	p.registerPrefixFunc(token.MINUS, p.parsePrefixExpr)
@@ -100,7 +99,7 @@ func (p *Parser) nextToken() {
 }
 
 func (p *Parser) peekError(t token.TokenType) {
-	s := fmt.Sprintf("expected next token to be %s, got %s instead", p.peekToken.Type, t)
+	s := fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken.Type)
 	p.errors = append(p.errors, s)
 }
 
@@ -172,8 +171,12 @@ func (p *Parser) parseFloatExpr() ast.Expression {
 }
 
 func (p *Parser) parseGroupedExpr() ast.Expression {
-	p.nextToken()
+	if p.peekTokenIs(token.RPAREN) {
+		// nothing to parse, empty paren
+		return nil
+	}
 
+	p.nextToken()
 	exp := p.parseExpr(LOWEST)
 	if !p.expectPeek(token.RPAREN) {
 		return nil
@@ -264,8 +267,126 @@ func (p *Parser) parseExpr(precedence Precedence) ast.Expression {
 
 // Parse statements helpers
 
+func (p *Parser) parseClassVarStatement() *ast.ClassVarStatement {
+	/* Parses the following rule
+	 * <identifier>: <type>? = <default>?
+	 * This is only an allowed syntax inside thr class definition
+	 */
+	if !p.curTokenIs(token.IDENT) {
+		p.addParseError(fmt.Sprintf("expected identifier, got %s", p.curToken.Literal))
+		return nil
+	}
+
+	stmt := &ast.ClassVarStatement{
+		Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
+	}
+
+	if !p.expectPeek(token.COLON) {
+		p.addParseError(fmt.Sprintf("expected `:` after identifier, got %s", p.peekToken.Literal))
+		return nil
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		p.addParseError(fmt.Sprintf("expected type specifier after `:`, got %s", p.curToken.Literal))
+		return nil
+	}
+
+	stmt.Type = &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	p.nextToken()
+
+	if p.curTokenIs(token.ASSIGN) {
+		// optional default assignment
+		p.nextToken()
+		stmt.Default = &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(token.SEMICOLON) {
+		p.addParseError(fmt.Sprintf("var definitions should end in semicolons, got %s", p.curToken.Literal))
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseClassBlockStatements() ([]*ast.ClassVarStatement, []*ast.FunctionStatement) {
+	fields := make([]*ast.ClassVarStatement, 0)
+	methods := make([]*ast.FunctionStatement, 0)
+
+	p.nextToken()
+
+	for !p.curTokenIs(token.EOF) {
+		if p.curTokenIs(token.IDENT) {
+			field := p.parseClassVarStatement()
+			if field != nil {
+				fields = append(fields, field)
+			}
+			fmt.Print(fields, "\n", p.curToken.Type)
+		} else if p.curTokenIs(token.FUNCTION) {
+			meth := p.parseFunctionStatement()
+			if meth != nil {
+				methods = append(methods, meth)
+			}
+			fmt.Print(fields)
+		} else {
+			p.addParseError(fmt.Sprintf("invalid keyword %s inside class definition", p.curToken.Literal))
+			return fields, methods
+		}
+
+		p.nextToken()
+	}
+
+	return fields, methods
+}
+
 func (p *Parser) parseClassDeclaration() *ast.ClassDeclStatement {
-	return nil
+	stmt := &ast.ClassDeclStatement{
+		Token: p.curToken,
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		p.addParseError(fmt.Sprintf("expected class name, found %s", p.peekToken.Literal))
+		return nil
+	}
+
+	stmt.Name = &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	if p.peekTokenIs(token.LPAREN) {
+		p.nextToken()
+		if p.peekTokenIs(token.IDENT) {
+			p.nextToken()
+			stmt.SuperClass = &ast.Identifier{
+				Token: p.curToken,
+				Value: p.curToken.Literal,
+			}
+		}
+
+		if !p.expectPeek(token.RPAREN) {
+			p.addParseError(fmt.Sprintf("expected ')', found %s", p.peekToken.Literal))
+			return nil
+		}
+	}
+
+	// }
+	if !p.expectPeek(token.LBRACE) {
+		p.addParseError("class definition missing '{'")
+		return nil
+	}
+
+	fmt.Printf("curToken: %s, nextToken: %s\n", p.curToken.Literal, p.peekToken.Literal)
+	stmt.Fields, stmt.Methods = p.parseClassBlockStatements()
+	return stmt
 }
 
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
@@ -363,7 +484,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	fmt.Printf("curtoken: %s\n", p.curToken.Literal)
 	block := &ast.BlockStatement{
 		Token: p.curToken,
 	}
@@ -433,7 +553,7 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, map[string]*ast.I
 	return idents, argumentTypes, argumentDefaults
 }
 
-func (p *Parser) parseFunctionExpr() ast.Expression {
+func (p *Parser) parseFunctionStatement() *ast.FunctionStatement {
 	/*
 		 * Parses a function statement
 			* functionStatement :== fn <Identifier> "(" <args...>, <args: type>, <args: type "=" <Identifier>> ): <returnTypeIdentifier>
@@ -448,10 +568,18 @@ func (p *Parser) parseFunctionExpr() ast.Expression {
 	// reference example: fn hello(a: int = 100): string { ... }
 
 	// -- fn
-	p.nextToken()
-	// -- hello
-	stmt := &ast.FunctionLiteral{
+	stmt := &ast.FunctionStatement{
 		Token: p.curToken, // stores `hello`
+	}
+	// -- hello
+	if !p.expectPeek(token.IDENT) {
+		p.addParseError("expected function name, got none")
+		return nil
+	}
+
+	stmt.Name = &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
 	}
 
 	// -- (
@@ -489,7 +617,7 @@ func (p *Parser) parseFunctionExpr() ast.Expression {
 	}
 
 	stmt.Body = p.parseBlockStatement()
-
+	p.nextToken()
 	return stmt
 }
 
@@ -571,6 +699,8 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
+	case token.FUNCTION:
+		return p.parseFunctionStatement()
 	case token.CLASS:
 		return p.parseClassDeclaration()
 	default:
