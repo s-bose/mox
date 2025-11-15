@@ -29,27 +29,10 @@ type Identifier struct {
 	Value string
 }
 
-type IdentifierWithType struct {
-	Identifier
-	Type *Identifier
-}
-
 func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 func (i *Identifier) String() string {
 	return i.Value
-}
-
-func (it *IdentifierWithType) expressionNode()      {}
-func (it *IdentifierWithType) TokenLiteral() string { return it.Token.Literal }
-func (it *IdentifierWithType) String() string {
-	var out bytes.Buffer
-
-	out.WriteString(it.Value)
-	if it.Type != nil {
-		out.WriteString(": " + it.Type.String())
-	}
-	return out.String()
 }
 
 type LetStatement struct {
@@ -96,6 +79,11 @@ func (rs *ReturnStatement) String() string {
 	s.WriteString(";")
 
 	return s.String()
+}
+
+type ClassDeclStatement struct {
+	Token      token.Token // holds the class name
+	SuperClass *Identifier
 }
 
 // Expression Nodes

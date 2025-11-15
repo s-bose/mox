@@ -138,28 +138,6 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	}
 }
 
-func (p *Parser) parseIdentifierWithType() *ast.IdentifierWithType {
-
-	ident := &ast.IdentifierWithType{
-		Identifier: ast.Identifier{
-			Token: p.curToken,
-			Value: p.curToken.Literal,
-		},
-	}
-
-	if p.peekTokenIs(token.COLON) {
-		p.nextToken()
-		typToken := &ast.Identifier{
-			Token: p.curToken,
-			Value: p.curToken.Literal,
-		}
-
-		ident.Type = typToken
-	}
-	return ident
-
-}
-
 // Expression Parsers
 
 func (p *Parser) parseBooleanExpr() ast.Expression {
@@ -285,6 +263,10 @@ func (p *Parser) parseExpr(precedence Precedence) ast.Expression {
 }
 
 // Parse statements helpers
+
+func (p *Parser) parseClassDeclaration() *ast.ClassDeclStatement {
+	return nil
+}
 
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	/*
@@ -589,6 +571,8 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
+	case token.CLASS:
+		return p.parseClassDeclaration()
 	default:
 		return p.parseExpressionStatement()
 	}
