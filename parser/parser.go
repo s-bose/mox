@@ -267,6 +267,68 @@ func (p *Parser) parseExpr(precedence Precedence) ast.Expression {
 
 // Parse statements helpers
 
+func (p *Parser) parseForInStatement() *ast.ForInStatement {
+	stmt := &ast.ForInStatement{
+		For: p.curToken,
+	}
+	p.nextToken()
+
+	targets := make([]*ast.Identifier, 0)
+
+	for !p.curTokenIs(token.IN) {
+		if p.curTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if p.curTokenIs(token.IDENT) {
+			targetIdent := &ast.Identifier{
+				Token: p.curToken,
+				Value: p.curToken.Literal,
+			}
+
+			targets = append(targets, targetIdent)
+			p.nextToken()
+		} else {
+			p.addParseError(fmt.Sprintf("invalid token %s", p.curToken.Literal))
+			return nil
+		}
+	}
+
+	// consume `in`
+	p.nextToken()
+
+	stmt.Iterable = p.parseExpr(LOWEST)
+
+	if !p.expectPeek(token.LBRACE) {
+		p.addParseError("for loop missing block statement")
+		return nil
+	}
+
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
+}
+
+func (p *Parser) parseForStatement() ast.Statement {
+	// parse for statement
+	// example
+	//
+	// for (let x = 1; x < 10; x += 1) { ... }
+	//
+	// for i, iter in iterable { ... }
+
+	forIdent := &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	if p.peekTokenIs(token.LPAREN) {
+		// p.parseForStatementWithInitCond
+	}
+
+	if p.peekTokenIs(token.IDENT) {
+		// p.parseForInStatement
+	}
+}
+
 func (p *Parser) parseClassVarStatement() *ast.ClassVarStatement {
 	/* Parses the following rule
 	 * <identifier>: <type>? = <default>?
@@ -703,6 +765,8 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseFunctionStatement()
 	case token.CLASS:
 		return p.parseClassDeclaration()
+	case token.FOR:
+		return p.parseForStatement()
 	default:
 		return p.parseExpressionStatement()
 	}

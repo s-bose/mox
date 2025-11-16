@@ -74,3 +74,15 @@ func TestNextTokenOperator(t *testing.T) {
 		assert.Equal(t, tok.Type, tt.expectedType)
 	}
 }
+
+func TestNoLinesInLexing(t *testing.T) {
+	input := "let x: int;\n let y = 2;"
+
+	l := New(input)
+
+	for range input {
+		l.NextToken()
+	}
+
+	assert.Equal(t, 2, l.lineNo)
+}

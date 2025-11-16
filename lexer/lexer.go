@@ -1,12 +1,17 @@
 package lexer
 
-import "github.com/s-bose/mox/token"
+import (
+	"fmt"
+
+	"github.com/s-bose/mox/token"
+)
 
 type Lexer struct {
 	input        string
 	position     int
 	readPosition int
 	ch           byte
+	lineNo       int
 }
 
 func New(input string) *Lexer {
@@ -38,6 +43,7 @@ func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
 	l.skipWhitespace()
+	fmt.Printf("char: %s\n", string(l.ch))
 
 	switch l.ch {
 	case '=':
@@ -120,6 +126,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok = makeToken(token.RBRACE, l.ch)
 	case '[':
 		tok = makeToken(token.LSQB, l.ch)
+	case '\n':
+		// newline encountered
+		l.lineNo++
+		fmt.Printf("newline encountered, line %d\n", l.lineNo)
 	case ']':
 		tok = makeToken(token.RSQB, l.ch)
 	case 0:
@@ -161,7 +171,7 @@ func (l *Lexer) readNumber() string {
 }
 
 func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\r' {
 		l.readChar()
 	}
 }
