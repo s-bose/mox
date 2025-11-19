@@ -36,8 +36,7 @@ func checkParserErrors(t *testing.T, p *Parser) {
 }
 
 func TestLetStatements(t *testing.T) {
-	input := `
-	let x = 123;
+	input := `let x = 123;
 	let y: int = 123;
 	let z: string = "hello";
 	`
@@ -45,6 +44,10 @@ func TestLetStatements(t *testing.T) {
 	lex := lexer.New(input)
 	p := New(lex)
 	program := p.ParseProgram()
+	stmt := program.Statements
+	for i, stmt := range stmt {
+		fmt.Printf("line %d ---- %s ---- %+v\n", i, stmt.String(), stmt)
+	}
 
 	tests := []struct {
 		expectedIdent string
@@ -62,8 +65,8 @@ func TestLetStatements(t *testing.T) {
 
 		if stmt.TokenLiteral() != "let" {
 			t.Errorf(
-				"Expected 'let', foung %q",
-				stmt.TokenLiteral(),
+				"%d: Expected 'let', foung %q",
+				i, stmt.TokenLiteral(),
 			)
 		}
 
@@ -264,6 +267,10 @@ func TestOpPrecedenceParsing(t *testing.T) {
 		{
 			"!(true == true)",
 			"(!(true == true))",
+		},
+		{
+			"add(1, 2)",
+			"add(1, 2)",
 		},
 	}
 
@@ -489,4 +496,48 @@ func TestVarStatementWithDefault(t *testing.T) {
 	assert.Equal(t, "x", stmt.Name.String())
 	assert.Equal(t, "int", stmt.Type.String())
 	assert.Equal(t, "123", stmt.Default.String())
+}
+
+func TestForInStatement(t *testing.T) {
+	input := `for i, x in y {}`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	forIn := p.parseForInStatement()
+	assert.IsType(t, &ast.ForInStatement{}, forIn)
+
+	assert.Equal(t, "for", forIn.For.Literal)
+	assert.Equal(t, "y", forIn.Iterable.String())
+
+	targets := make([]string, 0)
+	for _, t := range forIn.Targets {
+		targets = append(targets, t.String())
+	}
+
+	assert.ElementsMatch(t, []string{"i", "x"}, targets)
+	assert.IsType(t, &ast.BlockStatement{}, forIn.Body)
+	assert.Equal(t, 0, len(forIn.Body.Statements))
+}
+
+func TestCallExpression(t *testing.T) {
+	input := `add(1, 2 * 3, sub(1, 2), foo)`
+
+	program := initParser(input)
+
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+	expr, _ := stmt.(*ast.ExpressionStatement)
+	c := expr.Expression.(*ast.CallExpression)
+	assert.IsType(t, &ast.CallExpression{}, c)
+
+	assert.Equal(t, "(", c.TokenLiteral())
+	assert.Equal(t, "add", c.Function.String())
+	args := c.Arguments
+	assert.Equal(t, "1", args[0].String())
+	assert.Equal(t, "(2 * 3)", args[1].String())
+	assert.Equal(t, "sub(1, 2)", args[2].String())
+	assert.Equal(t, "foo", args[3].String())
 }

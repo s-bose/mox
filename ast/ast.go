@@ -326,21 +326,28 @@ func (is *IfExpression) String() string {
 }
 func (is *IfExpression) expressionNode() {}
 
-type ElseStatement struct {
-	Token      token.Token
-	ThenBranch Statement
+type CallExpression struct {
+	Token     token.Token // stores '('
+	Function  Expression
+	Arguments []Expression
 }
 
-func (es *ElseStatement) TokenLiteral() string { return es.Token.Literal }
-func (es *ElseStatement) String() string {
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("else")
-	out.WriteString(es.ThenBranch.String())
+	args := []string{}
+	for _, a := range ce.Arguments {
+		args = append(args, a.String())
+	}
+
+	out.WriteString(ce.Function.String() + "(")
+	out.WriteString(strings.Join(args, ", "))
+	out.WriteString(")")
 
 	return out.String()
 }
-func (es *ElseStatement) statementNode() {}
+func (ce *CallExpression) expressionNode() {}
 
 type BlockStatement struct {
 	Token      token.Token
