@@ -62,10 +62,9 @@ const (
 	TRUE     = "true"
 	FALSE    = "false"
 	IF       = "if"
+	IN       = "in"
 	ELSE     = "else"
 	NULL     = "null"
-	PRIVATE  = "private"
-	IMPL     = "impl"
 )
 
 var keywords = map[string]TokenType{
@@ -78,6 +77,7 @@ var keywords = map[string]TokenType{
 	"true":   TRUE,
 	"false":  FALSE,
 	"if":     IF,
+	"in":     IN,
 	"else":   ELSE,
 	"null":   NULL,
 }

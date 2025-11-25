@@ -81,6 +81,59 @@ func (rs *ReturnStatement) String() string {
 	return s.String()
 }
 
+type ForInStatement struct {
+	For      token.Token
+	Targets  []*Identifier
+	Iterable Expression
+	Body     *BlockStatement
+}
+
+func (fi *ForInStatement) TokenLiteral() string { return fi.For.Literal }
+func (fi *ForInStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(fi.For.Literal)
+	targets := []string{}
+
+	for _, t := range fi.Targets {
+		targets = append(targets, t.String())
+	}
+
+	out.WriteString(" " + strings.Join(targets, ", "))
+	out.WriteString(" " + "in")
+	out.WriteString(" " + fi.Iterable.String())
+	out.WriteString(" {")
+	out.WriteString(fi.Body.String())
+	out.WriteString(" }")
+
+	return out.String()
+}
+func (fi *ForInStatement) statementNode() {}
+
+type ForStatement struct {
+	For    token.Token
+	Init   Statement
+	Cond   Expression
+	Update Expression
+	Body   *BlockStatement
+}
+
+func (fs *ForStatement) TokenLiteral() string { return fs.For.Literal }
+func (fs *ForStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(fs.For.Literal)
+	out.WriteString(" (" + fs.Init.String() + "; ")
+	out.WriteString(" " + fs.Cond.String() + "; ")
+	out.WriteString(" " + fs.Update.String() + ") ")
+	out.WriteString("{")
+	out.WriteString(fs.Body.String())
+	out.WriteString("}")
+
+	return out.String()
+}
+func (fs *ForStatement) statementNode() {}
+
 type ClassVarStatement struct {
 	Name    *Identifier
 	Type    *Identifier
@@ -88,7 +141,7 @@ type ClassVarStatement struct {
 }
 
 func (cv *ClassVarStatement) statementNode()       {}
-func (cv *ClassVarStatement) TokenLiteral() string { return cv.Name.String() } // `var`
+func (cv *ClassVarStatement) TokenLiteral() string { return cv.Name.String() }
 func (cv *ClassVarStatement) String() string {
 	var out bytes.Buffer
 
@@ -273,21 +326,28 @@ func (is *IfExpression) String() string {
 }
 func (is *IfExpression) expressionNode() {}
 
-type ElseStatement struct {
-	Token      token.Token
-	ThenBranch Statement
+type CallExpression struct {
+	Token     token.Token // stores '('
+	Function  Expression
+	Arguments []Expression
 }
 
-func (es *ElseStatement) TokenLiteral() string { return es.Token.Literal }
-func (es *ElseStatement) String() string {
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("else")
-	out.WriteString(es.ThenBranch.String())
+	args := []string{}
+	for _, a := range ce.Arguments {
+		args = append(args, a.String())
+	}
+
+	out.WriteString(ce.Function.String() + "(")
+	out.WriteString(strings.Join(args, ", "))
+	out.WriteString(")")
 
 	return out.String()
 }
-func (es *ElseStatement) statementNode() {}
+func (ce *CallExpression) expressionNode() {}
 
 type BlockStatement struct {
 	Token      token.Token

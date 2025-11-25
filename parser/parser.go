@@ -33,6 +33,7 @@ var precedenceTable = map[token.TokenType]Precedence{
 	token.MINUS:  SUM,
 	token.STAR:   PRODUCT,
 	token.FSLASH: PRODUCT,
+	token.LPAREN: CALL,
 }
 
 type (
@@ -74,6 +75,7 @@ func initParseFuncs(p *Parser) {
 	p.registerInfixFunc(token.GT, p.parseInfixExpr)
 	p.registerInfixFunc(token.LTE, p.parseInfixExpr)
 	p.registerInfixFunc(token.GTE, p.parseInfixExpr)
+	p.registerInfixFunc(token.LPAREN, p.parseCallExpr)
 }
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{l: l, errors: []string{}}
@@ -265,7 +267,108 @@ func (p *Parser) parseExpr(precedence Precedence) ast.Expression {
 	return leftExp
 }
 
+func (p *Parser) parseCallArguments() []ast.Expression {
+	args := make([]ast.Expression, 0)
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken()
+		return args
+	}
+
+	p.nextToken()
+	args = append(args, p.parseExpr(LOWEST))
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+		args = append(args, p.parseExpr(LOWEST))
+	}
+
+	if !p.expectPeek(token.RPAREN) {
+		p.addParseError(fmt.Sprintf("expected closing ')' for arguments, got %s", p.peekToken.Literal))
+		return nil
+	}
+
+	return args
+}
+
+func (p *Parser) parseCallExpr(function ast.Expression) ast.Expression {
+	stmt := &ast.CallExpression{
+		Token:    p.curToken,
+		Function: function,
+	}
+
+	stmt.Arguments = p.parseCallArguments()
+	return stmt
+}
+
 // Parse statements helpers
+
+func (p *Parser) parseForInStatement() *ast.ForInStatement {
+	stmt := &ast.ForInStatement{
+		For: p.curToken,
+	}
+	p.nextToken()
+
+	targets := make([]*ast.Identifier, 0)
+
+	for !p.curTokenIs(token.IN) {
+		if p.curTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if p.curTokenIs(token.IDENT) {
+			targetIdent := &ast.Identifier{
+				Token: p.curToken,
+				Value: p.curToken.Literal,
+			}
+
+			targets = append(targets, targetIdent)
+			p.nextToken()
+		} else {
+			p.addParseError(fmt.Sprintf("invalid token %s", p.curToken.Literal))
+			return nil
+		}
+	}
+
+	if len(targets) != 0 {
+		stmt.Targets = targets
+	}
+
+	// consume `in`
+	p.nextToken()
+
+	stmt.Iterable = p.parseExpr(LOWEST)
+
+	if !p.expectPeek(token.LBRACE) {
+		p.addParseError("for loop missing block statement")
+		return nil
+	}
+
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
+}
+
+func (p *Parser) parseForStatement() ast.Statement {
+	// parse for statement
+	// example
+	//
+	// for (let x = 1; x < 10; x += 1) { ... }
+	//
+	// for i, iter in iterable { ... }
+
+	// forIdent := &ast.Identifier{
+	// 	Token: p.curToken,
+	// 	Value: p.curToken.Literal,
+	// }
+
+	if p.peekTokenIs(token.LPAREN) {
+		// p.parseForStatementWithInitCond
+	}
+
+	if p.peekTokenIs(token.IDENT) {
+		return p.parseForInStatement()
+	}
+
+	return nil
+}
 
 func (p *Parser) parseClassVarStatement() *ast.ClassVarStatement {
 	/* Parses the following rule
@@ -518,7 +621,7 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, map[string]*ast.I
 	p.nextToken()
 	for !p.curTokenIs(token.RPAREN) {
 		if p.curTokenIs(token.EOF) {
-			p.addParseError(fmt.Sprintf("unexpected EOF on function parameters"))
+			p.addParseError("unexpected EOF on function parameters")
 			return nil, nil, nil
 		}
 
@@ -563,8 +666,7 @@ func (p *Parser) parseFunctionStatement() *ast.FunctionStatement {
 		 	* Examples
 				* fn foobar(a: int, b: string, c: MyClass = DEFAULT) {
 				* 	return a + b;
-				}
-				return p.parseElseStatement()
+				* }
 	*/
 
 	// reference example: fn hello(a: int = 100): string { ... }
@@ -696,6 +798,8 @@ func (p *Parser) parseIfExpr() ast.Expression {
 }
 
 func (p *Parser) ParseStatement() ast.Statement {
+	fmt.Printf("curToken is: %s\n", p.curToken.Literal)
+
 	switch p.curToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
@@ -705,6 +809,8 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseFunctionStatement()
 	case token.CLASS:
 		return p.parseClassDeclaration()
+	case token.FOR:
+		return p.parseForStatement()
 	default:
 		return p.parseExpressionStatement()
 	}

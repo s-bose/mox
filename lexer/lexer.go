@@ -11,6 +11,7 @@ type Lexer struct {
 	position     int
 	readPosition int
 	ch           byte
+	lineNo       int
 }
 
 func New(input string) *Lexer {
@@ -216,8 +217,13 @@ func (l *Lexer) readNumber() string {
 }
 
 func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\r' || l.ch == '\n' {
 		l.readChar()
+
+		if l.ch == '\n' {
+			l.lineNo++
+		}
 	}
 }
 
