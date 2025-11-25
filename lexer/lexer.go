@@ -1,6 +1,10 @@
 package lexer
 
-import "github.com/s-bose/mox/token"
+import (
+	"fmt"
+
+	"github.com/s-bose/mox/token"
+)
 
 type Lexer struct {
 	input        string
@@ -109,7 +113,13 @@ func (l *Lexer) NextToken() token.Token {
 	case ':':
 		tok = makeToken(token.COLON, l.ch)
 	case '"':
-		tok = makeToken(token.QUOTE, l.ch)
+		str, err := l.readString()
+		if err != nil {
+			tok.Literal = err.Error()
+			tok.Type = token.ILLEGAL
+		}
+		tok.Literal = str
+		tok.Type = token.STRING
 	case '(':
 		tok = makeToken(token.LPAREN, l.ch)
 	case ')':
@@ -150,6 +160,51 @@ func (l *Lexer) readIdent() string {
 	}
 
 	return l.input[position:l.position]
+}
+
+func (l *Lexer) readString() (string, error) {
+	out := ""
+
+	for {
+		l.readChar()
+
+		if l.ch == 0 {
+			return "", fmt.Errorf("string not terminated")
+		}
+
+		if l.ch == '"' {
+			break
+		}
+
+		if l.ch == '\\' {
+			if l.PeekChar() == '\n' {
+				l.readChar()
+				continue
+			}
+
+			l.readChar()
+			if l.ch == 0 {
+				return "", fmt.Errorf("string not terminated")
+			}
+			if l.ch == 'n' {
+				l.ch = '\n'
+			}
+			if l.ch == 'r' {
+				l.ch = '\r'
+			}
+			if l.ch == 't' {
+				l.ch = '\t'
+			}
+			if l.ch == '"' {
+				l.ch = '"'
+			}
+			if l.ch == '\\' {
+				l.ch = '\\'
+			}
+		}
+		out += string(l.ch)
+	}
+	return out, nil
 }
 
 func (l *Lexer) readNumber() string {

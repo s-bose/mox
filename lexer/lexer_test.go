@@ -25,11 +25,9 @@ func TestNextToken(t *testing.T) {
 		{token.CONST, "const"},
 		{token.IDENT, "x"},
 		{token.COLON, ":"},
-		{token.STRING, "string"},
+		{token.IDENT, "string"},
 		{token.ASSIGN, "="},
-		{token.QUOTE, `"`},
-		{token.IDENT, "hello"},
-		{token.QUOTE, `"`},
+		{token.STRING, "hello"},
 		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
@@ -38,8 +36,8 @@ func TestNextToken(t *testing.T) {
 	for _, tt := range tests {
 		tok := l.NextToken()
 
-		assert.Equal(t, tok.Type, tt.expectedType)
-		assert.Equal(t, tok.Literal, tt.expectedLiteral)
+		assert.Equal(t, tt.expectedType, tok.Type)
+		assert.Equal(t, tt.expectedLiteral, tok.Literal)
 	}
 }
 
