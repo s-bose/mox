@@ -219,11 +219,10 @@ func (l *Lexer) readNumber() string {
 func (l *Lexer) skipWhitespace() {
 
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\r' || l.ch == '\n' {
-		l.readChar()
-
 		if l.ch == '\n' {
 			l.lineNo++
 		}
+		l.readChar()
 	}
 }
 

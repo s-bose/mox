@@ -508,7 +508,6 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	p.nextToken()
 	stmt.ReturnValue = p.parseExpr(LOWEST)
 
-<<<<<<< Updated upstream
 	// skip next tokens until we hit semicolon
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
@@ -544,11 +543,14 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		stmt.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 	}
 
+	fmt.Printf("Peek :-> %s \n", p.peekToken.Literal)
+
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
 	}
 
-<<<<<<< Updated upstream
+	p.nextToken()
+
 	stmt.Value = p.parseExpr(LOWEST)
 
 	if p.peekTokenIs(token.SEMICOLON) {

@@ -74,7 +74,7 @@ func TestNextTokenOperator(t *testing.T) {
 }
 
 func TestNoLinesInLexing(t *testing.T) {
-	input := "let x: int;\n let y = 2;"
+	input := "let x: int;\nlet y = 2;"
 
 	l := New(input)
 
@@ -82,5 +82,5 @@ func TestNoLinesInLexing(t *testing.T) {
 		l.NextToken()
 	}
 
-	assert.Equal(t, 2, l.lineNo)
+	assert.Equal(t, 1, l.lineNo)
 }
