@@ -8,7 +8,7 @@ type Token struct {
 }
 
 func (t *Token) Repr() string {
-	return string(t.Type) + "('" + t.Literal + "')"
+	return string(t.Type) + "('" + string(t.Literal) + "')"
 }
 
 const (

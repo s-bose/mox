@@ -272,7 +272,7 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
 		return args
-	}
+	} 
 
 	p.nextToken()
 	args = append(args, p.parseExpr(LOWEST))
