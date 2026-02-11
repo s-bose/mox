@@ -15,11 +15,15 @@ const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
 
+	TYPE = "type"
+
 	IDENT  = "ident"
 	INT    = "int"
 	FLOAT  = "float"
 	STRING = "string"
 	BOOL   = "bool"
+
+	DOT = "."
 
 	// Operators
 	ASSIGN = "="
@@ -93,12 +97,9 @@ func LookupIdent(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
 		return tok
 	}
-	return IDENT
-}
 
-func LookupDataType(ident string) TokenType {
-	if tok, ok := dataTypes[ident]; ok {
-		return tok
+	if _, ok := dataTypes[ident]; ok {
+		return TYPE
 	}
 	return IDENT
 }

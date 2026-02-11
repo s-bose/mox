@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 
 	"github.com/s-bose/mox/token"
@@ -137,20 +138,34 @@ func (l *Lexer) NextToken() token.Token {
 		tok = makeToken(token.LSQB, l.ch)
 	case rune(']'):
 		tok = makeToken(token.RSQB, l.ch)
+	case rune('.'):
+		tok = makeToken(token.DOT, l.ch)
 	case rune(0):
 		tok = token.Token{Type: token.EOF, Literal: ""}
 	default:
-		if unicode.IsLetter(l.ch) {
-			tok.Literal = l.readIdent()
-			tok.Type = token.LookupIdent(tok.Literal)
+
+		if isDigit(l.ch) {
+			tok := l.readDecimal()
 			return tok
-		} else if isDigit(l.ch) {
-			tok.Literal = l.readNumber()
-			tok.Type = token.INT
-			return tok
-		} else {
-			tok = makeToken(token.ILLEGAL, l.ch)
 		}
+
+		if !unicode.IsPrint(l.ch) {
+			tok = makeToken(token.ILLEGAL, l.ch)
+			l.readChar()
+			return tok
+		}
+
+		tok.Literal = l.readIdent()
+
+		if len(tok.Literal) == 0 {
+			tok.Type = token.ILLEGAL
+			l.readChar()
+			return tok
+		}
+
+		tok.Type = token.LookupIdent(tok.Literal)
+		return tok
+
 	}
 
 	l.readChar()
@@ -158,20 +173,21 @@ func (l *Lexer) NextToken() token.Token {
 }
 
 func (l *Lexer) skipComment() {
-	for l.ch != rune('\n') || l.ch != rune(0) {
+	for l.ch != rune('\n') && l.ch != rune(0) {
 		l.readChar()
 	}
 	l.skipWhitespace()
 }
 
-func (l *Lexer) readIdent() rune {
-	position := l.position
+func (l *Lexer) readIdent() string {
+	id := ""
 
 	for unicode.IsLetter(l.ch) {
+		id += string(l.ch)
 		l.readChar()
 	}
 
-	return []rune(l.input[position:l.position])
+	return id
 }
 
 func (l *Lexer) readString() (string, error) {
@@ -220,11 +236,35 @@ func (l *Lexer) readString() (string, error) {
 }
 
 func (l *Lexer) readNumber() string {
-	position := l.position
-	for isDigit(l.ch) {
+	str := ""
+
+	accept := "0123456789"
+
+	if l.ch == '0' && (l.peekChar() == 'x' || l.peekChar() == 'X') {
+		accept = "0x123456789abcdefABCDEF"
+	}
+
+	if l.ch == '0' && (l.peekChar() == 'b' || l.peekChar() == 'B') {
+		accept = "b01"
+	}
+
+	for strings.Contains(accept, string(l.ch)) {
+		str += string(l.ch)
 		l.readChar()
 	}
-	return l.input[position:l.position]
+
+	return str
+}
+
+func (l *Lexer) readDecimal() token.Token {
+	integer := l.readNumber()
+
+	if l.ch == '.' && isDigit(l.peekChar()) {
+		l.readChar()
+		fraction := l.readNumber()
+		return token.Token{Type: token.FLOAT, Literal: integer + "." + fraction}
+	}
+	return token.Token{Type: token.INT, Literal: integer}
 }
 
 func (l *Lexer) skipWhitespace() {
@@ -234,14 +274,17 @@ func (l *Lexer) skipWhitespace() {
 	}
 }
 
-func isDigit(ch byte) bool {
-	return '0' <= ch && ch <= '9'
+func isDigit(ch rune) bool {
+	return rune('0') <= ch && ch <= rune('9')
 }
 
-func isLetter(ch byte) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+func isLetter(ch rune) bool {
+	if unicode.IsLetter(ch) || ch == '_' || unicode.IsDigit(ch) {
+		return true
+	}
+	return false
 }
 
 func makeToken(tokenType token.TokenType, ch rune) token.Token {
-	return token.Token{Type: tokenType, Literal: ch}
+	return token.Token{Type: tokenType, Literal: string(ch)}
 }
