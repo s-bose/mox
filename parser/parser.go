@@ -272,7 +272,7 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
 		return args
-	} 
+	}
 
 	p.nextToken()
 	args = append(args, p.parseExpr(LOWEST))
@@ -384,19 +384,10 @@ func (p *Parser) parseClassVarStatement() *ast.ClassVarStatement {
 		Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
 	}
 
-	if !p.expectPeek(token.COLON) {
-		p.addParseError(fmt.Sprintf("expected `:` after identifier, got %s", p.peekToken.Literal))
+	stmt.Type = p.parseTypeHint()
+	if stmt.Type == nil {
+		p.addParseError(fmt.Sprintf("expected `: <type>` after identifier %s", stmt.Name.Value))
 		return nil
-	}
-
-	if !p.expectPeek(token.IDENT) {
-		p.addParseError(fmt.Sprintf("expected type specifier after `:`, got %s", p.curToken.Literal))
-		return nil
-	}
-
-	stmt.Type = &ast.Identifier{
-		Token: p.curToken,
-		Value: p.curToken.Literal,
 	}
 
 	p.nextToken()
@@ -432,13 +423,11 @@ func (p *Parser) parseClassBlockStatements() ([]*ast.ClassVarStatement, []*ast.F
 			if field != nil {
 				fields = append(fields, field)
 			}
-			fmt.Print(fields, "\n", p.curToken.Type)
 		} else if p.curTokenIs(token.FUNCTION) {
 			meth := p.parseFunctionStatement()
 			if meth != nil {
 				methods = append(methods, meth)
 			}
-			fmt.Print(fields)
 		} else {
 			p.addParseError(fmt.Sprintf("invalid keyword %s inside class definition", p.curToken.Literal))
 			return fields, methods
@@ -487,7 +476,6 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDeclStatement {
 		return nil
 	}
 
-	fmt.Printf("curToken: %s, nextToken: %s\n", p.curToken.Literal, p.peekToken.Literal)
 	stmt.Fields, stmt.Methods = p.parseClassBlockStatements()
 	return stmt
 }
@@ -534,16 +522,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
-	if p.expectPeek(token.COLON) {
-		// parse variable type
-		p.nextToken()
-
-		typeIdent := token.LookupDataType(p.curToken.Literal)
-		p.curToken.Type = typeIdent
-		stmt.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	}
-
-	fmt.Printf("Peek :-> %s \n", p.peekToken.Literal)
+	stmt.Type = p.parseTypeHint()
 
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
@@ -635,18 +614,13 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Identifier, map[string]*ast.I
 		}
 
 		idents = append(idents, ident)
-		p.nextToken()
 
-		if p.curTokenIs(token.COLON) {
-			// ident: type
-			p.nextToken() // get the type token after `:`
-			typeIdent := &ast.Identifier{
-				Token: p.curToken,
-				Value: p.curToken.Literal,
-			}
-			argumentTypes[ident.Value] = typeIdent
-			p.nextToken()
+		typeHint := p.parseTypeHint()
+		if typeHint != nil {
+			argumentTypes[ident.Value] = typeHint
 		}
+
+		p.nextToken()
 
 		if p.curTokenIs(token.ASSIGN) {
 			p.nextToken()
@@ -706,18 +680,8 @@ func (p *Parser) parseFunctionStatement() *ast.FunctionStatement {
 		return nil
 	}
 
-	// -- : string
-	if p.peekTokenIs(token.COLON) {
-		// variable : type
-		p.nextToken() // consume `:`
-		p.nextToken() // type(string)
-		retTypeIdent := &ast.Identifier{
-			Token: p.curToken,
-			Value: p.curToken.Literal,
-		}
-
-		stmt.ReturnType = retTypeIdent
-	}
+	// -- : returnType
+	stmt.ReturnType = p.parseTypeHint()
 
 	// {
 	if !p.expectPeek(token.LBRACE) {
@@ -760,8 +724,6 @@ func (p *Parser) parseIfExpr() ast.Expression {
 	}
 	stmt.Condition = cond
 
-	fmt.Println(stmt.Condition.String())
-
 	// parse then clause { ... }
 
 	if !p.expectPeek(token.LBRACE) {
@@ -802,8 +764,6 @@ func (p *Parser) parseIfExpr() ast.Expression {
 }
 
 func (p *Parser) ParseStatement() ast.Statement {
-	fmt.Printf("curToken is: %s\n", p.curToken.Literal)
-
 	switch p.curToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
@@ -817,5 +777,21 @@ func (p *Parser) ParseStatement() ast.Statement {
 		return p.parseForStatement()
 	default:
 		return p.parseExpressionStatement()
+	}
+}
+
+func (p *Parser) parseTypeHint() *ast.Identifier {
+	if !p.peekTokenIs(token.COLON) {
+		return nil
+	}
+	p.nextToken() // consume ':'
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	return &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
 	}
 }

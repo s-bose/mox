@@ -326,6 +326,24 @@ func (is *IfExpression) String() string {
 }
 func (is *IfExpression) expressionNode() {}
 
+type MemberAccessExpr struct {
+	Token  token.Token // the DOT token
+	Object Expression  // expression before the dot
+	Member *Identifier // identifier after the dot
+}
+
+func (ma *MemberAccessExpr) TokenLiteral() string { return ma.Token.Literal }
+func (ma *MemberAccessExpr) String() string {
+	var s bytes.Buffer
+	s.WriteString("(")
+	s.WriteString(ma.Object.String())
+	s.WriteString(".")
+	s.WriteString(ma.Member.String())
+	s.WriteString(")")
+	return s.String()
+}
+func (ma *MemberAccessExpr) expressionNode() {}
+
 type CallExpression struct {
 	Token     token.Token // stores '('
 	Function  Expression

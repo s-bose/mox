@@ -15,8 +15,6 @@ const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
 
-	TYPE = "type"
-
 	IDENT  = "ident"
 	INT    = "int"
 	FLOAT  = "float"
@@ -86,20 +84,9 @@ var keywords = map[string]TokenType{
 	"null":   NULL,
 }
 
-var dataTypes = map[string]TokenType{
-	"int":    INT,
-	"float":  FLOAT,
-	"string": STRING,
-	"bool":   BOOL,
-}
-
 func LookupIdent(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
 		return tok
-	}
-
-	if _, ok := dataTypes[ident]; ok {
-		return TYPE
 	}
 	return IDENT
 }
