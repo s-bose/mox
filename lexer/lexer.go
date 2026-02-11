@@ -180,9 +180,15 @@ func (l *Lexer) skipComment() {
 }
 
 func (l *Lexer) readIdent() string {
-	id := ""
+	// first character must be a letter or underscore
+	if !isIdentStart(l.ch) {
+		return ""
+	}
 
-	for unicode.IsLetter(l.ch) {
+	id := string(l.ch)
+	l.readChar()
+
+	for isIdentPart(l.ch) {
 		id += string(l.ch)
 		l.readChar()
 	}
@@ -278,11 +284,12 @@ func isDigit(ch rune) bool {
 	return rune('0') <= ch && ch <= rune('9')
 }
 
-func isLetter(ch rune) bool {
-	if unicode.IsLetter(ch) || ch == '_' || unicode.IsDigit(ch) {
-		return true
-	}
-	return false
+func isIdentStart(ch rune) bool {
+	return unicode.IsLetter(ch) || ch == '_'
+}
+
+func isIdentPart(ch rune) bool {
+	return unicode.IsLetter(ch) || ch == '_' || unicode.IsDigit(ch)
 }
 
 func makeToken(tokenType token.TokenType, ch rune) token.Token {
