@@ -537,24 +537,21 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	/*
-		 *
-			* Parses an expression statement
-			*
-			*
-			* Examples
-			* ## Prefix expressions
-			*
-			* -4 -variable_name, !func()
-			*
-			* ## Infix expressions
-			*
-			* x + - * / y
-			* x == y
-			* x <= y
-			* x >= y
-			* x < y
-			* x > y
-			* x != y
+		Parses an expression statement
+		Examples
+		## Prefix expressions
+
+		-4 -variable_name, !func()
+
+		## Infix expressions
+
+		x + - * / y
+		x == y
+		x <= y
+		x >= y
+		x < y
+		x > y
+		x != y
 	*/
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
 
@@ -567,8 +564,22 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	/*
+		Parses a block statement of the format { ... }
+
+		Current Token Head -> "{"
+		reads statements one by one in the group
+		returns the list of statements
+
+		Current Token Head After Return -> "}"
+	*/
+	if !p.curTokenIs(token.LBRACE) {
+		p.addParseError(fmt.Sprintf("expected '{' at beginning of block statement, got %s", p.curToken.Literal))
+		return nil
+	}
+
 	block := &ast.BlockStatement{
-		Token: p.curToken,
+		Token: p.curToken, // consume "{""
 	}
 
 	block.Statements = []ast.Statement{}
@@ -684,7 +695,6 @@ func (p *Parser) parseFunctionStatement() *ast.FunctionStatement {
 	}
 
 	stmt.Body = p.parseBlockStatement()
-	p.nextToken()
 	return stmt
 }
 
