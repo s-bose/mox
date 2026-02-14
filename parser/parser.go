@@ -173,11 +173,6 @@ func (p *Parser) parseFloatExpr() ast.Expression {
 }
 
 func (p *Parser) parseGroupedExpr() ast.Expression {
-	if p.peekTokenIs(token.RPAREN) {
-		// nothing to parse, empty paren
-		return nil
-	}
-
 	p.nextToken()
 	exp := p.parseExpr(LOWEST)
 	if !p.expectPeek(token.RPAREN) {
@@ -713,54 +708,35 @@ func (p *Parser) parseBracketExpression() ast.Expression {
 	return expr
 }
 
+func (p *Parser) parseBranchBody() ast.Expression {
+	if p.peekTokenIs(token.LBRACE) {
+		p.nextToken()
+		return p.parseBlockStatement()
+	}
+	p.nextToken()
+	return p.parseExpr(LOWEST)
+}
+
 func (p *Parser) parseIfExpr() ast.Expression {
-	stmt := &ast.IfExpression{
-		Token: p.curToken,
+	expr := &ast.IfExpression{
+		Token: p.curToken, // consume 'if'
 	}
 
 	cond := p.parseBracketExpression()
 	if cond == nil {
+		p.addParseError("if expression cannot contain empty conditions")
 		return nil
 	}
-	stmt.Condition = cond
+	expr.Condition = cond
 
-	// parse then clause { ... }
+	expr.ThenBranch = p.parseBranchBody() // TODO
 
-	if !p.expectPeek(token.LBRACE) {
-		p.addParseError(fmt.Sprintf("expected '{' but got %s", p.curToken.Literal))
-		return nil
-	}
-
-	blockStmt := p.parseBlockStatement()
-	stmt.ThenBranch = blockStmt
-
-	// else block
 	if p.peekTokenIs(token.ELSE) {
 		p.nextToken()
-
-		// `else if`
-		if p.peekTokenIs(token.IF) {
-			p.nextToken()
-
-			stmt.ElseBranch = &ast.BlockStatement{
-				Statements: []ast.Statement{
-					&ast.ExpressionStatement{
-						Expression: p.parseIfExpr(),
-					},
-				},
-			}
-
-			return stmt
-		}
-
-		if !p.expectPeek(token.LBRACE) {
-			p.addParseError(fmt.Sprintf("expected '{' but got %s", p.curToken.Literal))
-			return nil
-		}
-
-		stmt.ElseBranch = p.parseBlockStatement()
+		expr.ElseBranch = p.parseBranchBody() // TODO
 	}
-	return stmt
+
+	return expr
 }
 
 func (p *Parser) ParseStatement() ast.Statement {

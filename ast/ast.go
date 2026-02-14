@@ -304,8 +304,8 @@ type IfExpression struct {
 
 	Token      token.Token
 	Condition  Expression
-	ThenBranch *BlockStatement
-	ElseBranch *BlockStatement
+	ThenBranch Expression
+	ElseBranch Expression
 }
 
 func (is *IfExpression) TokenLiteral() string { return is.Token.Literal }
@@ -313,7 +313,9 @@ func (is *IfExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("if")
+	out.WriteString("( ")
 	out.WriteString(is.Condition.String())
+	out.WriteString(" )")
 	out.WriteString(" ")
 	out.WriteString(is.ThenBranch.String())
 
@@ -373,6 +375,7 @@ type BlockStatement struct {
 }
 
 func (bs *BlockStatement) statementNode()       {}
+func (bs *BlockStatement) expressionNode()      {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer

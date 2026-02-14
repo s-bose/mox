@@ -286,7 +286,7 @@ func TestOpPrecedenceParsing(t *testing.T) {
 	}
 }
 
-func TestIfStatement(t *testing.T) {
+func TestIfStatementStandard(t *testing.T) {
 	input := `if (x < y) { x } else { y }`
 
 	l := lexer.New(input)
@@ -306,8 +306,8 @@ func TestIfStatement(t *testing.T) {
 	assert.Equal(t, "y", is.ElseBranch.String())
 }
 
-func TestIfStatementWithElseIfStatement(t *testing.T) {
-	input := `if (x <= y) { x } else if (x < y) { z } else { y }`
+func TestIfStatementWithElseIf(t *testing.T) {
+	input := `if (x < y) { x } else if (x > y) { z } else { y }`
 
 	l := lexer.New(input)
 	p := New(l)
@@ -321,18 +321,54 @@ func TestIfStatementWithElseIfStatement(t *testing.T) {
 	is, _ := exp.(*ast.IfExpression)
 
 	assert.Equal(t, "if", is.TokenLiteral())
-	assert.Equal(t, "(x <= y)", is.Condition.String())
+	assert.Equal(t, "(x < y)", is.Condition.String())
 
 	assert.Equal(t, is.ThenBranch.String(), "x")
-	elseBranchStmt, _ := is.ElseBranch.Statements[0].(*ast.ExpressionStatement)
-	elseExpr := elseBranchStmt.Expression
-	assert.IsType(t, &ast.IfExpression{}, elseExpr)
+	elseIfBranch, _ := is.ElseBranch.(*ast.IfExpression)
+	assert.Equal(t, "if", elseIfBranch.TokenLiteral())
+	assert.Equal(t, "(x > y)", elseIfBranch.Condition.String())
+	assert.Equal(t, "z", elseIfBranch.ThenBranch.String())
 
-	elseIfExpr, _ := elseExpr.(*ast.IfExpression)
+	elseBranchStmt, _ := elseIfBranch.ElseBranch.(*ast.BlockStatement).Statements[0].(*ast.ExpressionStatement)
+	elseBranchExpr := elseBranchStmt.Expression
+	assert.Equal(t, "y", elseBranchExpr.String())
+}
 
-	assert.Equal(t, "if", elseIfExpr.TokenLiteral())
-	assert.Equal(t, "(x < y)", elseIfExpr.Condition.String())
-	assert.Equal(t, "z", elseIfExpr.ThenBranch.String())
+func TestIfStatementWithoutBlockStatement(t *testing.T) {
+	input := `if (x < y) x else y`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	is, _ := exp.(*ast.IfExpression)
+
+	assert.Equal(t, "if", is.TokenLiteral())
+	assert.Equal(t, "(x < y)", is.Condition.String())
+	assert.Equal(t, "x", is.ThenBranch.String())
+	assert.Equal(t, "y", is.ElseBranch.String())
+}
+
+func TestIfStatementWithBlockStatementBranch(t *testing.T) {
+	input := `if (x < y) { let foo = 3; foo + 1 } else y`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	is, _ := exp.(*ast.IfExpression)
+
+	assert.Equal(t, "if", is.TokenLiteral())
+	assert.Equal(t, "(x < y)", is.Condition.String())
+	assert.Equal(t, "let foo = 3;(foo + 1)", is.ThenBranch.String())
 }
 
 func TestFunctionStatementSimple(t *testing.T) {
