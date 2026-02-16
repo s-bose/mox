@@ -1,0 +1,15 @@
+class Obj {
+    a: int;
+    b: string;
+}
+
+fn funcName(a: int, b: string, c: []string): []Obj {
+    let total: []Obj = []
+    for i, val in c.items() {
+        println("value for index: #{i} is #{val}")
+        total.append(
+            new Obj(a, val)
+        )
+    }
+    return total
+}

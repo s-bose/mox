@@ -42,6 +42,11 @@ const (
 	AND    = "&&"
 	OR     = "||"
 
+	PLUS_ASSIGN   = "+="
+	MINUS_ASSIGN  = "-="
+	STAR_ASSIGN   = "*="
+	FSLASH_ASSIGN = "/="
+
 	COMMA     = ","
 	SEMICOLON = ";"
 	COLON     = ":"

@@ -69,13 +69,41 @@ func (l *Lexer) NextToken() token.Token {
 			tok = makeToken(token.BANG, l.ch)
 		}
 	case rune('+'):
-		tok = makeToken(token.PLUS, l.ch)
+		if l.peekChar() == rune('=') {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.PLUS_ASSIGN, Literal: literal}
+		} else {
+			tok = makeToken(token.PLUS, l.ch)
+		}
 	case rune('-'):
-		tok = makeToken(token.MINUS, l.ch)
+		if l.peekChar() == rune('=') {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.MINUS_ASSIGN, Literal: literal}
+		} else {
+			tok = makeToken(token.MINUS, l.ch)
+		}
 	case rune('/'):
-		tok = makeToken(token.FSLASH, l.ch)
+		if l.peekChar() == rune('=') {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.FSLASH_ASSIGN, Literal: literal}
+		} else {
+			tok = makeToken(token.FSLASH, l.ch)
+		}
 	case rune('*'):
-		tok = makeToken(token.STAR, l.ch)
+		if l.peekChar() == rune('=') {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.STAR_ASSIGN, Literal: literal}
+		} else {
+			tok = makeToken(token.STAR, l.ch)
+		}
 	case rune('<'):
 		if l.peekChar() == rune('=') {
 			ch := l.ch
