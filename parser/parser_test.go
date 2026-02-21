@@ -286,7 +286,7 @@ func TestOpPrecedenceParsing(t *testing.T) {
 	}
 }
 
-func TestIfStatement(t *testing.T) {
+func TestIfStatementStandard(t *testing.T) {
 	input := `if (x < y) { x } else { y }`
 
 	l := lexer.New(input)
@@ -306,8 +306,8 @@ func TestIfStatement(t *testing.T) {
 	assert.Equal(t, "y", is.ElseBranch.String())
 }
 
-func TestIfStatementWithElseIfStatement(t *testing.T) {
-	input := `if (x <= y) { x } else if (x < y) { z } else { y }`
+func TestIfStatementWithElseIf(t *testing.T) {
+	input := `if (x < y) { x } else if (x > y) { z } else { y }`
 
 	l := lexer.New(input)
 	p := New(l)
@@ -321,18 +321,54 @@ func TestIfStatementWithElseIfStatement(t *testing.T) {
 	is, _ := exp.(*ast.IfExpression)
 
 	assert.Equal(t, "if", is.TokenLiteral())
-	assert.Equal(t, "(x <= y)", is.Condition.String())
+	assert.Equal(t, "(x < y)", is.Condition.String())
 
 	assert.Equal(t, is.ThenBranch.String(), "x")
-	elseBranchStmt, _ := is.ElseBranch.Statements[0].(*ast.ExpressionStatement)
-	elseExpr := elseBranchStmt.Expression
-	assert.IsType(t, &ast.IfExpression{}, elseExpr)
+	elseIfBranch, _ := is.ElseBranch.(*ast.IfExpression)
+	assert.Equal(t, "if", elseIfBranch.TokenLiteral())
+	assert.Equal(t, "(x > y)", elseIfBranch.Condition.String())
+	assert.Equal(t, "z", elseIfBranch.ThenBranch.String())
 
-	elseIfExpr, _ := elseExpr.(*ast.IfExpression)
+	elseBranchStmt, _ := elseIfBranch.ElseBranch.(*ast.BlockStatement).Statements[0].(*ast.ExpressionStatement)
+	elseBranchExpr := elseBranchStmt.Expression
+	assert.Equal(t, "y", elseBranchExpr.String())
+}
 
-	assert.Equal(t, "if", elseIfExpr.TokenLiteral())
-	assert.Equal(t, "(x < y)", elseIfExpr.Condition.String())
-	assert.Equal(t, "z", elseIfExpr.ThenBranch.String())
+func TestIfStatementWithoutBlockStatement(t *testing.T) {
+	input := `if (x < y) x else y`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	is, _ := exp.(*ast.IfExpression)
+
+	assert.Equal(t, "if", is.TokenLiteral())
+	assert.Equal(t, "(x < y)", is.Condition.String())
+	assert.Equal(t, "x", is.ThenBranch.String())
+	assert.Equal(t, "y", is.ElseBranch.String())
+}
+
+func TestIfStatementWithBlockStatementBranch(t *testing.T) {
+	input := `if (x < y) { let foo = 3; foo + 1 } else y`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	assert.Equal(t, 1, len(program.Statements))
+	stmt := program.Statements[0]
+	assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+	exp := stmt.(*ast.ExpressionStatement).Expression
+	is, _ := exp.(*ast.IfExpression)
+
+	assert.Equal(t, "if", is.TokenLiteral())
+	assert.Equal(t, "(x < y)", is.Condition.String())
+	assert.Equal(t, "let foo = 3;(foo + 1)", is.ThenBranch.String())
 }
 
 func TestFunctionStatementSimple(t *testing.T) {
@@ -498,7 +534,28 @@ func TestVarStatementWithDefault(t *testing.T) {
 	assert.Equal(t, "123", stmt.Default.String())
 }
 
-func TestForInStatement(t *testing.T) {
+func TestForInStatementWithExpressionIterable(t *testing.T) {
+	input := `for x in getItems() {}`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	forIn := p.parseForInStatement()
+	assert.IsType(t, &ast.ForInStatement{}, forIn)
+
+	assert.Equal(t, "for", forIn.For.Literal)
+	assert.Equal(t, "getItems()", forIn.Iterable.String())
+	targets := make([]string, 0)
+	for _, t := range forIn.Targets {
+		targets = append(targets, t.String())
+	}
+
+	assert.ElementsMatch(t, []string{"x"}, targets)
+	assert.IsType(t, &ast.BlockStatement{}, forIn.Body)
+	assert.Equal(t, 0, len(forIn.Body.Statements))
+}
+
+func TestForInStatementMultipleTargets(t *testing.T) {
 	input := `for i, x in y {}`
 
 	l := lexer.New(input)
@@ -516,6 +573,27 @@ func TestForInStatement(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, []string{"i", "x"}, targets)
+	assert.IsType(t, &ast.BlockStatement{}, forIn.Body)
+	assert.Equal(t, 0, len(forIn.Body.Statements))
+}
+
+func TestForInStatementWithSingleTarget(t *testing.T) {
+	input := `for x in y {}`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	forIn := p.parseForInStatement()
+	assert.IsType(t, &ast.ForInStatement{}, forIn)
+
+	assert.Equal(t, "for", forIn.For.Literal)
+	assert.Equal(t, "y", forIn.Iterable.String())
+	targets := make([]string, 0)
+	for _, t := range forIn.Targets {
+		targets = append(targets, t.String())
+	}
+
+	assert.ElementsMatch(t, []string{"x"}, targets)
 	assert.IsType(t, &ast.BlockStatement{}, forIn.Body)
 	assert.Equal(t, 0, len(forIn.Body.Statements))
 }
@@ -540,4 +618,70 @@ func TestCallExpression(t *testing.T) {
 	assert.Equal(t, "(2 * 3)", args[1].String())
 	assert.Equal(t, "sub(1, 2)", args[2].String())
 	assert.Equal(t, "foo", args[3].String())
+}
+
+func TestAssignExpression(t *testing.T) {
+	testcases := []struct {
+		input    string
+		expected string
+	}{
+		{"x = 5", "x = 5"},
+		{"y += 10", "y += 10"},
+		{"z -= 3", "z -= 3"},
+		{"a *= 2", "a *= 2"},
+		{"b /= 4", "b /= 4"},
+		{"b /= 4;", "b /= 4"}, // ignores semicolon
+	}
+
+	for _, tc := range testcases {
+		program := initParser(tc.input)
+
+		assert.Equal(t, 1, len(program.Statements))
+		stmt := program.Statements[0]
+		assert.IsType(t, &ast.ExpressionStatement{}, stmt)
+		expr, _ := stmt.(*ast.ExpressionStatement)
+		assignExpr, _ := expr.Expression.(*ast.AssignExpression)
+
+		assert.Equal(t, tc.expected, assignExpr.String())
+	}
+}
+
+func TestParseMemberAccessExpression(t *testing.T) {
+	inputs := []struct {
+		input    string
+		expected string
+	}{
+		{"obj.field", "(obj.field)"},
+		{"obj.method()", "(obj.method)()"},
+		{"obj.field1.field2", "((obj.field1).field2)"},
+		{"obj.method1().method2()", "((obj.method1)().method2)()"},
+	}
+
+	for _, tc := range inputs {
+		program := initParser(tc.input)
+		assert.Equal(t, 1, len(program.Statements))
+		stmt := program.Statements[0].String()
+
+		assert.Equal(t, tc.expected, stmt)
+	}
+}
+
+func TestParseIndexExpression(t *testing.T) {
+	inputs := []struct {
+		input    string
+		expected string
+	}{
+		{"arr[0]", "(arr[0])"},
+		{"matrix[1][2]", "((matrix[1])[2])"},
+		{"myMap[key]", "(myMap[key])"},
+		{"a.b.c[key]", "(((a.b).c)[key])"},
+	}
+
+	for _, tc := range inputs {
+		program := initParser(tc.input)
+		assert.Equal(t, 1, len(program.Statements))
+		stmt := program.Statements[0].String()
+
+		assert.Equal(t, tc.expected, stmt)
+	}
 }

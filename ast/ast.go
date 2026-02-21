@@ -217,6 +217,23 @@ func (b *Boolean) TokenLiteral() string { return b.Token.Literal }
 func (b *Boolean) String() string       { return b.TokenLiteral() }
 func (b *Boolean) expressionNode()      {}
 
+type NullLiteral struct {
+	Token token.Token
+}
+
+func (n *NullLiteral) TokenLiteral() string { return n.Token.Literal }
+func (n *NullLiteral) String() string       { return n.TokenLiteral() }
+func (n *NullLiteral) expressionNode()      {}
+
+type StringLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
+func (sl *StringLiteral) String() string       { return sl.Token.Literal }
+func (sl *StringLiteral) expressionNode()      {}
+
 type PrefixExpr struct {
 	Token token.Token
 	Op    string
@@ -255,6 +272,45 @@ func (ie *InfixExpr) String() string {
 	return s.String()
 }
 func (ie *InfixExpr) expressionNode() {}
+
+type AssignExpression struct {
+	Token    token.Token // the '=' token
+	Name     Expression
+	Operator string
+	Value    Expression
+}
+
+func (as *AssignExpression) expressionNode()      {}
+func (as *AssignExpression) TokenLiteral() string { return as.Token.Literal }
+func (as *AssignExpression) String() string {
+	var s bytes.Buffer
+
+	s.WriteString(as.Name.String())
+	s.WriteString(" " + as.Operator + " ")
+	s.WriteString(as.Value.String())
+
+	return s.String()
+}
+
+type IndexExpression struct {
+	Token token.Token
+	Name  Expression
+	Index Expression
+}
+
+func (ie *IndexExpression) expressionNode()      {}
+func (ie *IndexExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IndexExpression) String() string {
+	var s bytes.Buffer
+
+	s.WriteString("(")
+	s.WriteString(ie.Name.String())
+	s.WriteString("[")
+	s.WriteString(ie.Index.String())
+	s.WriteString("])")
+
+	return s.String()
+}
 
 type FunctionStatement struct {
 	Token token.Token
@@ -304,8 +360,8 @@ type IfExpression struct {
 
 	Token      token.Token
 	Condition  Expression
-	ThenBranch *BlockStatement
-	ElseBranch *BlockStatement
+	ThenBranch Expression
+	ElseBranch Expression
 }
 
 func (is *IfExpression) TokenLiteral() string { return is.Token.Literal }
@@ -313,7 +369,9 @@ func (is *IfExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("if")
+	out.WriteString("( ")
 	out.WriteString(is.Condition.String())
+	out.WriteString(" )")
 	out.WriteString(" ")
 	out.WriteString(is.ThenBranch.String())
 
@@ -325,6 +383,24 @@ func (is *IfExpression) String() string {
 	return out.String()
 }
 func (is *IfExpression) expressionNode() {}
+
+type MemberAccessExpr struct {
+	Token  token.Token // the DOT token
+	Object Expression  // expression before the dot
+	Member *Identifier // identifier after the dot
+}
+
+func (ma *MemberAccessExpr) TokenLiteral() string { return ma.Token.Literal }
+func (ma *MemberAccessExpr) String() string {
+	var s bytes.Buffer
+	s.WriteString("(")
+	s.WriteString(ma.Object.String())
+	s.WriteString(".")
+	s.WriteString(ma.Member.String())
+	s.WriteString(")")
+	return s.String()
+}
+func (ma *MemberAccessExpr) expressionNode() {}
 
 type CallExpression struct {
 	Token     token.Token // stores '('
@@ -355,6 +431,7 @@ type BlockStatement struct {
 }
 
 func (bs *BlockStatement) statementNode()       {}
+func (bs *BlockStatement) expressionNode()      {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer

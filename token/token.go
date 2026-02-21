@@ -8,7 +8,7 @@ type Token struct {
 }
 
 func (t *Token) Repr() string {
-	return string(t.Type) + "('" + t.Literal + "')"
+	return string(t.Type) + "('" + string(t.Literal) + "')"
 }
 
 const (
@@ -20,6 +20,8 @@ const (
 	FLOAT  = "float"
 	STRING = "string"
 	BOOL   = "bool"
+
+	DOT = "."
 
 	// Operators
 	ASSIGN = "="
@@ -39,6 +41,11 @@ const (
 	LTE    = "<="
 	AND    = "&&"
 	OR     = "||"
+
+	PLUS_ASSIGN   = "+="
+	MINUS_ASSIGN  = "-="
+	STAR_ASSIGN   = "*="
+	FSLASH_ASSIGN = "/="
 
 	COMMA     = ","
 	SEMICOLON = ";"
@@ -82,22 +89,8 @@ var keywords = map[string]TokenType{
 	"null":   NULL,
 }
 
-var dataTypes = map[string]TokenType{
-	"int":    INT,
-	"float":  FLOAT,
-	"string": STRING,
-	"bool":   BOOL,
-}
-
 func LookupIdent(ident string) TokenType {
 	if tok, ok := keywords[ident]; ok {
-		return tok
-	}
-	return IDENT
-}
-
-func LookupDataType(ident string) TokenType {
-	if tok, ok := dataTypes[ident]; ok {
 		return tok
 	}
 	return IDENT
