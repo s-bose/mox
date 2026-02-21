@@ -36,7 +36,7 @@ func checkParserErrors(t *testing.T, p *Parser) {
 }
 
 func TestLetStatements(t *testing.T) {
-	input := `let x = 123;
+	input := `let x = 122;
 	let y: int = 123;
 	let z: string = "hello";
 	`
@@ -80,6 +80,44 @@ func TestLetStatements(t *testing.T) {
 		}
 
 		assert.Equal(t, letStmt.Name.TokenLiteral(), tc.expectedIdent)
+	}
+}
+
+func TestConstStatement(t *testing.T) {
+	input := `const x = 122;
+	const y: int = 123;
+	const z: string = "hello";
+	`
+
+	lex := lexer.New(input)
+	p := New(lex)
+	program := p.ParseProgram()
+
+	tests := []struct {
+		expectedIdent string
+		expectedType  string
+	}{
+		{"x", ""},
+		{"y", "int"},
+		{"z", "string"},
+	}
+
+	assert.NotNil(t, program)
+	assert.Equal(t, len(program.Statements), 3)
+	for i, tc := range tests {
+		stmt := program.Statements[i]
+
+		if stmt.TokenLiteral() != "const" {
+			t.Errorf(
+				"%d: Expected 'const', foung %q",
+				i, stmt.TokenLiteral(),
+			)
+		}
+
+		assert.IsType(t, &ast.ConstStatement{}, stmt)
+		constStmt, _ := stmt.(*ast.ConstStatement)
+
+		assert.Equal(t, constStmt.Name.Value, tc.expectedIdent)
 	}
 }
 

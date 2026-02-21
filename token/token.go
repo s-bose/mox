@@ -21,6 +21,14 @@ const (
 	STRING = "string"
 	BOOL   = "bool"
 
+	// composite types
+	MAP    = "map"
+	ARRAY  = "array"
+	SET    = "set"
+	TUPLE  = "tuple"
+	UNION  = "union"
+	OPTION = "option"
+
 	DOT = "."
 
 	// Operators
@@ -87,6 +95,12 @@ var keywords = map[string]TokenType{
 	"in":     IN,
 	"else":   ELSE,
 	"null":   NULL,
+	"map":    MAP,
+	"array":  ARRAY,
+	"set":    SET,
+	"tuple":  TUPLE,
+	"union":  UNION,
+	"option": OPTION,
 }
 
 func LookupIdent(ident string) TokenType {
