@@ -121,7 +121,97 @@ type StringLiteral struct {
 
 func (sl *StringLiteral) expressionNode()      {}
 func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
-func (sl *StringLiteral) String() string       { return sl.Token.Literal }
+func (sl *StringLiteral) String() string {
+	var s bytes.Buffer
+	s.WriteString("\"")
+	s.WriteString(sl.Value)
+	s.WriteString("\"")
+	return s.String()
+}
+
+// Array Literal
+
+type ArrayLiteral struct {
+	Token    token.Token
+	Elements []Expression
+}
+
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var s bytes.Buffer
+	elementStrs := []string{}
+	for _, e := range al.Elements {
+		elementStrs = append(elementStrs, e.String())
+	}
+	s.WriteString("[")
+	s.WriteString(strings.Join(elementStrs, ", "))
+	s.WriteString("]")
+	return s.String()
+}
+
+// Map Literal
+
+type MapLiteral struct {
+	Token token.Token
+	Pairs map[Expression]Expression
+}
+
+func (ml *MapLiteral) expressionNode()      {}
+func (ml *MapLiteral) TokenLiteral() string { return ml.Token.Literal }
+func (ml *MapLiteral) String() string {
+	var s bytes.Buffer
+	pairStrs := []string{}
+	for key, value := range ml.Pairs {
+		pairStrs = append(pairStrs, key.String()+": "+value.String())
+	}
+	s.WriteString("{")
+	s.WriteString(strings.Join(pairStrs, ", "))
+	s.WriteString("}")
+	return s.String()
+}
+
+// Set Literal
+
+type SetLiteral struct {
+	Token    token.Token
+	Elements []Expression
+}
+
+func (sl *SetLiteral) expressionNode()      {}
+func (sl *SetLiteral) TokenLiteral() string { return sl.Token.Literal }
+func (sl *SetLiteral) String() string {
+	var s bytes.Buffer
+	elementStrs := []string{}
+	for _, e := range sl.Elements {
+		elementStrs = append(elementStrs, e.String())
+	}
+	s.WriteString("{")
+	s.WriteString(strings.Join(elementStrs, ", "))
+	s.WriteString("}")
+	return s.String()
+}
+
+// Tuple Literal
+
+type TupleLiteral struct {
+	Token    token.Token
+	Elements []Expression
+}
+
+func (tl *TupleLiteral) expressionNode()      {}
+func (tl *TupleLiteral) TokenLiteral() string { return tl.Token.Literal }
+func (tl *TupleLiteral) String() string {
+	var s bytes.Buffer
+	elementStrs := []string{}
+	for _, e := range tl.Elements {
+		elementStrs = append(elementStrs, e.String())
+	}
+	s.WriteString("(")
+	s.WriteString(strings.Join(elementStrs, ", "))
+	s.WriteString(")")
+	return s.String()
+}
 
 // --------–-----------------------------------------------------------------
 // Composite Types

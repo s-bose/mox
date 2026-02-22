@@ -723,3 +723,75 @@ func TestParseIndexExpression(t *testing.T) {
 		assert.Equal(t, tc.expected, stmt)
 	}
 }
+
+func TestArrayLiteralExpression(t *testing.T) {
+	inputs := []struct {
+		input    string
+		expected string
+	}{
+		{
+			"[1, 2, 3]",
+			"[1, 2, 3]",
+		},
+		{
+			"[1, 2 * 3, 3 + 4]",
+			"[1, (2 * 3), (3 + 4)]",
+		},
+		{
+			"[]",
+			"[]",
+		},
+		{
+			"[1]",
+			"[1]",
+		},
+		{
+			"[\"Hello world\"]",
+			"[\"Hello world\"]",
+		},
+	}
+
+	for _, tc := range inputs {
+		program := initParser(tc.input)
+		assert.Equal(t, 1, len(program.Statements))
+		stmt := program.Statements[0].String()
+
+		assert.Equal(t, tc.expected, stmt)
+	}
+}
+
+func TestTupleLiteralExpression(t *testing.T) {
+	inputs := []struct {
+		input    string
+		expected string
+	}{
+		{
+			"(1, 2, 3)",
+			"(1, 2, 3)",
+		},
+		{
+			"(1, 2 * 3, 3 + 4)",
+			"(1, (2 * 3), (3 + 4))",
+		},
+		{
+			"()",
+			"()",
+		},
+		{
+			"(1,)",
+			"(1)",
+		},
+		{
+			"(\"Hello world\",)",
+			"(\"Hello world\")",
+		},
+	}
+
+	for _, tc := range inputs {
+		program := initParser(tc.input)
+		assert.Equal(t, 1, len(program.Statements))
+		stmt := program.Statements[0].String()
+
+		assert.Equal(t, tc.expected, stmt)
+	}
+}

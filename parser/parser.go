@@ -643,30 +643,8 @@ func (p *Parser) parseCallExpr(function ast.Expression) ast.Expression {
 		Function: function,
 	}
 
-	stmt.Arguments = p.parseCallArguments()
+	stmt.Arguments = p.parseExpressionList(token.RPAREN)
 	return stmt
-}
-
-func (p *Parser) parseCallArguments() []ast.Expression {
-	args := make([]ast.Expression, 0)
-	if p.peekTokenIs(token.RPAREN) {
-		p.nextToken()
-		return args
-	}
-
-	p.nextToken()
-	args = append(args, p.parseExpr(LOWEST))
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-		args = append(args, p.parseExpr(LOWEST))
-	}
-
-	if !p.expectPeek(token.RPAREN) {
-		return nil
-	}
-
-	return args
 }
 
 func (p *Parser) parseMemberAccessExpr(left ast.Expression) ast.Expression {
@@ -780,6 +758,58 @@ func (p *Parser) parseNull() ast.Expression {
 		Token: p.curToken,
 	}
 }
+
+func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
+	expressions := []ast.Expression{}
+
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return expressions
+	}
+
+	p.nextToken()
+	expressions = append(expressions, p.parseExpr(LOWEST))
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		if p.peekTokenIs(end) {
+			break
+		}
+		p.nextToken()
+		expressions = append(expressions, p.parseExpr(LOWEST))
+	}
+
+	if !p.expectPeek(end) {
+		return nil
+	}
+
+	return expressions
+}
+
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	expr := &ast.ArrayLiteral{
+		Token: p.curToken,
+	}
+
+	expr.Elements = p.parseExpressionList(token.RSQB)
+	return expr
+}
+
+func (p *Parser) parseTupleLiteral() ast.Expression {
+	expr := &ast.TupleLiteral{
+		Token: p.curToken,
+	}
+
+	expr.Elements = p.parseExpressionList(token.RPAREN)
+	return expr
+}
+
+// func (p *Parser) parseMapLiteral() ast.Expression {
+// 	expr := &ast.MapLiteral{
+// 		Token: p.curToken,
+// 	}
+
+// }
 
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	switch p.curToken.Type {
@@ -947,6 +977,8 @@ func initParseFuncs(p *Parser) {
 	p.registerPrefixFunc(token.IF, p.parseIfExpr)
 	p.registerPrefixFunc(token.BANG, p.parsePrefixExpr)
 	p.registerPrefixFunc(token.MINUS, p.parsePrefixExpr)
+	p.registerPrefixFunc(token.LSQB, p.parseArrayLiteral)
+	p.registerPrefixFunc(token.LPAREN, p.parseTupleLiteral)
 
 	// Infix fns
 	p.registerInfixFunc(token.PLUS, p.parseInfixExpr)
